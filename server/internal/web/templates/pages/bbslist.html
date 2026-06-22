@@ -1,0 +1,35 @@
+{{define "bbslist"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">
+    bbs list <span class="chip">{{len .Entries}}</span>
+  </h2>
+  <p class="sg-note">Other boards worth a call. The scene never died &mdash; it just got an IP.</p>
+
+  {{if .Entries}}
+    <table class="table">
+      <thead><tr><th>name</th><th>address</th><th>software</th><th>sysop</th></tr></thead>
+      <tbody>
+        {{range .Entries}}
+          <tr>
+            <td><b>{{.Name}}</b></td>
+            <td>{{if .Address}}{{.Address}}{{else}}&mdash;{{end}}</td>
+            <td>{{if .Software}}{{template "c-badge" (dict "label" .Software "variant" "dim")}}{{else}}&mdash;{{end}}</td>
+            <td>{{if .Sysop}}{{.Sysop}}{{else}}&mdash;{{end}}</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No boards on file yet. Add the first one.</p>
+  {{end}}
+
+  <div class="sg-row">
+    {{if .User}}
+      <a class="btn btn-primary" href="/bbslist/add">add a board</a>
+    {{else}}
+      <a class="btn" href="/login?next=/bbslist/add">log in to add a board</a>
+    {{end}}
+  </div>
+</section>
+{{end}}

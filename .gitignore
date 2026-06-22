@@ -1,0 +1,74 @@
+# host build
+/vendx
+/vxcfg
+/*_test
+/render_dump
+# generated ANSI->PNG screenshots (reproducible via `make shots`)
+/shots/
+# runtime board state (created on first run)
+data/*.DAT
+data/*.dat
+# external deps fetched at build time (Watt-32 stack), never committed
+/build/
+# DOS build outputs (rebuilt by mk.bat / CI, never committed)
+*.o
+*.obj
+*.OBJ
+*.exe
+VENDX.EXE
+*.log
+*.LOG
+*.map
+*.MAP
+
+# message-base / file-area runtime data
+data/*.MSG
+data/*.msg
+data/*.FIL
+
+# door drop files (written at runtime in the board cwd)
+DOOR.SYS
+DORINFO1.DEF
+# QWK/REP offline-mail packets + uploaded file bytes
+data/*.QWK
+data/*.REP
+data/CONTROL.DAT
+data/files/*
+!data/files/.gitkeep
+
+# python bytecode
+tools/__pycache__/
+*.pyc
+
+# Watcom compile error logs
+*.err
+*.ERR
+/vendx-net
+/server/vxd
+server/vxd
+
+# generated ssh host key (per-deploy, never commit)
+vendetta_host_key
+vendetta_host_key.pub
+
+# ---------------------------------------------------------------------------
+# C test-bench build outputs (repo root). These are regenerable Open Watcom /
+# host-cc compiler outputs that should never be committed -- the C sources,
+# Makefile, and mk*.bat that produce them stay tracked, but their products do
+# not. (*.o is also listed above; repeated here with the rest for clarity.)
+# ---------------------------------------------------------------------------
+*.o
+vendx
+vendx-net
+vxcfg
+# C unit-test binaries (e.g. acs_test, userbase_test). NOTE: this matches
+# compiled test executables only -- Go test *sources* are named *_test.go and
+# keep their .go suffix, so they are NOT ignored by this pattern.
+*_test
+
+# legacy C board runtime data + build outputs
+legacy/data/*.DAT
+legacy/vendx
+legacy/vendx-net
+legacy/vxcfg
+legacy/build/

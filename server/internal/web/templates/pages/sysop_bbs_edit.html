@@ -1,0 +1,37 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "bbslist")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Entry.ID}}edit board{{else}}new board{{end}}</h2>
+  <p class="sg-note">List another board in the directory. Only a name is required.</p>
+
+  <form class="authform" method="post" action="/sysop/bbslist">
+    <input type="hidden" name="id" value="{{.Entry.ID}}">
+    <div class="field">
+      <label for="bbs-name">name <span class="opt">(required)</span></label>
+      <input id="bbs-name" type="text" name="name" maxlength="60" autocomplete="off" placeholder="board name" value="{{.Entry.Name}}" required>
+    </div>
+    <div class="field">
+      <label for="bbs-address">address</label>
+      <input id="bbs-address" type="text" name="address" maxlength="80" autocomplete="off" placeholder="host:port or dialup" value="{{.Entry.Address}}">
+    </div>
+    <div class="field">
+      <label for="bbs-software">software</label>
+      <input id="bbs-software" type="text" name="software" maxlength="40" autocomplete="off" placeholder="Mystic, Synchronet, ..." value="{{.Entry.Software}}">
+    </div>
+    <div class="field">
+      <label for="bbs-sysop">sysop</label>
+      <input id="bbs-sysop" type="text" name="sysop" maxlength="40" autocomplete="off" placeholder="who runs it?" value="{{.Entry.Sysop}}">
+    </div>
+    <div class="field">
+      <label for="bbs-descr">description</label>
+      <textarea id="bbs-descr" name="descr" rows="4" maxlength="240" placeholder="what's it about?">{{.Entry.Desc}}</textarea>
+    </div>
+
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Entry.ID}}save changes{{else}}add board{{end}}</button>
+      <a class="btn" href="/sysop/bbslist">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

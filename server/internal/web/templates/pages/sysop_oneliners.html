@@ -1,0 +1,31 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "oneliners")}}
+
+<section class="panel">
+  <h2 class="ph">the wall <span class="chip">{{len .Liners}}</span></h2>
+  {{if .Liners}}
+    <table class="table">
+      <thead>
+        <tr><th>author</th><th>line</th><th>posted</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Liners}}
+          <tr>
+            <td>{{template "c-badge" (dict "label" .Author "variant" "dim")}}</td>
+            <td>{{.Text}}</td>
+            <td>{{since .Posted}}</td>
+            <td class="rowacts">
+              <form method="post" action="/sysop/oneliners/{{.ID}}/delete" onsubmit="return confirm('Delete this line?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">The wall is blank.</p>
+  {{end}}
+  <p class="sg-note">Removing a line is permanent. The wall shows the most recent entries first.</p>
+</section>
+{{end}}

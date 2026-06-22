@@ -1,0 +1,33 @@
+/* =============================================================================
+   VENDETTA/X -- users feature sheet (40-users.css)
+   -----------------------------------------------------------------------------
+   Layers on top of the design system (00-base.css). Only small compositional
+   tweaks: aligning the avatar+handle pair in directory rows and shaping the
+   profile details table. No new colors -- existing tokens only.
+   ========================================================================== */
+
+/* directory: avatar + handle as a single inline link */
+.users-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--cyan);
+  font-weight: 700;
+}
+.users-handle:hover { text-shadow: none; }
+.users-handle:hover .users-name { color: var(--ink-bright); text-shadow: var(--glow-soft); }
+.users-name { color: var(--cyan); transition: color var(--t-fast), text-shadow var(--t-fast); }
+
+/* profile details: th acts as a quiet label column, not a heading row */
+.users-details th {
+  width: 9rem;
+  white-space: nowrap;
+  vertical-align: top;
+  border-bottom: 1px dotted var(--line-soft);
+}
+.users-details td { color: var(--ink); }
+.users-details tr:last-child th,
+.users-details tr:last-child td { border-bottom: none; }
+
+/* flag badges sit on one line with a little breathing room */
+.users-flags { display: inline-flex; gap: var(--s1); flex-wrap: wrap; }

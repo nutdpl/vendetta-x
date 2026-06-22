@@ -1,0 +1,30 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "areas")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Editing}}edit file area{{else}}new file area{{end}}</h2>
+  <form method="post" action="/sysop/areas" class="authform" autocomplete="off">
+    {{if .Editing}}<input type="hidden" name="id" value="{{.Area.ID}}">{{end}}
+    <div class="field">
+      <label for="a-tag">tag</label>
+      <input id="a-tag" type="text" name="tag" maxlength="20" value="{{.Area.Tag}}" required>
+    </div>
+    <div class="field">
+      <label for="a-name">name</label>
+      <input id="a-name" type="text" name="name" maxlength="60" value="{{.Area.Name}}" required>
+    </div>
+    <div class="field">
+      <label for="a-desc">description</label>
+      <input id="a-desc" type="text" name="descr" maxlength="120" value="{{.Area.Desc}}">
+    </div>
+    <div class="field">
+      <label for="a-acs">access ACS <span class="sg-note">(empty = open)</span></label>
+      <input id="a-acs" type="text" name="acs" maxlength="60" value="{{.Area.ACS}}">
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Editing}}save area{{else}}create area{{end}}</button>
+      <a class="btn" href="/sysop/areas">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

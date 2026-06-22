@@ -1,0 +1,42 @@
+{{define "gfiles"}}{{template "base" .}}{{end}}
+{{define "content"}}
+
+{{/* segmented control across the categories -- styleguide .tabs / .tab.
+     "all" is the default/unselected state; each category tab lights up (.on)
+     when it is the selected category. */}}
+{{if .Categories}}
+<div class="tabs">
+  <a class="tab{{if not .Selected}} on{{end}}" href="/gfiles"{{if not .Selected}} aria-current="page"{{end}}>all</a>
+  {{range .Categories}}
+    <a class="tab{{if eq $.Selected .}} on{{end}}"
+       href="/gfiles?cat={{.}}"
+       {{if eq $.Selected .}}aria-current="page"{{end}}>{{.}}</a>
+  {{end}}
+</div>
+{{end}}
+
+<section class="panel">
+  <h2 class="ph">
+    g-files <span class="chip">{{len .Docs}}</span>
+  </h2>
+  <p class="sg-note">The text library &mdash; rules, NFOs, scene docs. Read on.</p>
+
+  {{if .Docs}}
+    <table class="table">
+      <thead><tr><th>title</th><th>category</th><th>author</th><th class="num">age</th></tr></thead>
+      <tbody>
+        {{range .Docs}}
+          <tr>
+            <td><a class="msubject" href="/gfiles/{{.ID}}">{{.Title}}</a></td>
+            <td>{{template "c-badge" (dict "label" .Category "variant" "dim")}}</td>
+            <td>{{if .Author}}{{.Author}}{{else}}&mdash;{{end}}</td>
+            <td class="num">{{since .Added}}</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No documents{{if .Selected}} in {{.Selected}}{{end}} yet.</p>
+  {{end}}
+</section>
+{{end}}

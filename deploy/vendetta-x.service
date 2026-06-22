@@ -1,0 +1,78 @@
+# Vendetta/X -- systemd service unit for the Go BBS server.
+#
+# Assumes a host install layout:
+#   /opt/vendetta-x/vendx      the static binary (CGO_ENABLED=0 build)
+#   /opt/vendetta-x/art/       the ANSI .pp art screens
+#
+# Persistent state (SQLite DB + sidecars, SSH host key) lives in the systemd
+# StateDirectory at /var/lib/vendetta-x, which systemd creates and chowns to the
+# service user on start.
+#
+# Install steps are in deploy/README.md. Runs as a dedicated unprivileged user.
+
+[Unit]
+Description=Vendetta/X BBS (telnet + ssh + web)
+# Documentation= replace the URL below with your repository URL.
+Documentation=https://github.com/your-org/vendetta-x
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Dedicated non-root service account (create it before enabling -- see README).
+User=vendetta
+Group=vendetta
+
+# Working directory holds the binary + art/.
+WorkingDirectory=/opt/vendetta-x
+
+# systemd creates/owns /var/lib/vendetta-x (mode 0700 by default) for this user.
+StateDirectory=vendetta-x
+
+# Point the DB and SSH host key at the managed state directory. The art lives in
+# the read-only install dir. All listen ports are >1024, so no capabilities are
+# needed to bind them.
+ExecStart=/opt/vendetta-x/vendx \
+    -art=/opt/vendetta-x/art \
+    -db=/var/lib/vendetta-x/vendetta.db \
+    -hostkey=/var/lib/vendetta-x/host_key \
+    -telnet=:2323 \
+    -ssh=:2222 \
+    -http=:8080
+
+Restart=always
+RestartSec=2
+
+# ---- sandboxing / hardening ----------------------------------------------
+NoNewPrivileges=true
+# Read-only OS; only StateDirectory (and a few runtime dirs) are writable.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+# Network: IPv4/IPv6 TCP only (telnet/ssh/http listeners).
+RestrictAddressFamilies=AF_INET AF_INET6
+# No special capabilities required (all ports >1024).
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Limit syscalls to common, safe groups.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

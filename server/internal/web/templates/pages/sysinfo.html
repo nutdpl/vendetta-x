@@ -1,0 +1,40 @@
+{{define "content"}}
+
+<section class="panel">
+  <h2 class="ph">system info</h2>
+  <div class="stats">
+    {{template "c-stat" (dict "val" .Stats.Online "label" "online" "grad" true)}}
+    {{template "c-stat" (dict "val" .Stats.Users "label" "users")}}
+    {{template "c-stat" (dict "val" .Stats.Messages "label" "messages")}}
+    {{template "c-stat" (dict "val" .Stats.Files "label" "files")}}
+    {{template "c-stat" (dict "val" .Stats.Boards "label" "boards")}}
+    {{template "c-stat" (dict "val" .Stats.Oneliners "label" "oneliners")}}
+  </div>
+</section>
+
+<div class="cols">
+  <section class="panel">
+    <h3 class="ph">software</h3>
+    <table class="kv">
+      <tr><th>software</th><td>Vendetta/X</td></tr>
+      <tr><th>version</th><td>{{.Cfg.Version}}</td></tr>
+      <tr><th>users</th><td>{{.Stats.Users}}</td></tr>
+      <tr><th>messages</th><td>{{.Stats.Messages}}</td></tr>
+      <tr><th>files</th><td>{{.Stats.Files}}</td></tr>
+      <tr><th>boards</th><td>{{.Stats.Boards}}</td></tr>
+      <tr><th>file areas</th><td>{{.Stats.Areas}}</td></tr>
+      <tr><th>oneliners</th><td>{{.Stats.Oneliners}}</td></tr>
+      <tr><th>nodes online</th><td>{{.Stats.Online}}</td></tr>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3 class="ph">credits</h3>
+    <p class="lead">One Go binary, two faces over one shared SQLite spine.</p>
+    <p>Telnet, ssh, and the web you're reading now all run off the same backend
+    and the same dataset &mdash; rendered three ways. Real <code>.pp</code> art and
+    lightbar menus on the terminal side; this design system on the web side.</p>
+    <p class="empty">Greets to the scene. The scene never died &mdash; it just got an IP.</p>
+  </section>
+</div>
+{{end}}

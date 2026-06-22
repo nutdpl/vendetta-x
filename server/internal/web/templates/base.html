@@ -1,0 +1,63 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>{{.Title}} :: Vendetta/X</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <a class="brand" href="/">VENDETTA<span class="slash">/</span>X</a>
+    <div class="tagline">this is not a bbs</div>
+    <nav class="nav" aria-label="primary">
+      <a href="/"        class="{{if eq .Active "home"}}on{{end}}"   {{if eq .Active "home"}}aria-current="page"{{end}}>home</a>
+      <a href="/boards"  class="{{if eq .Active "boards"}}on{{end}}" {{if eq .Active "boards"}}aria-current="page"{{end}}>boards</a>
+      <a href="/files"   class="{{if eq .Active "files"}}on{{end}}"  {{if eq .Active "files"}}aria-current="page"{{end}}>files</a>
+      {{if and .User .Features.email}}<a href="/mail" class="{{if eq .Active "mail"}}on{{end}}" {{if eq .Active "mail"}}aria-current="page"{{end}}>mail</a>{{end}}
+      {{if and .User .Features.qwk}}<a href="/qwk" class="{{if eq .Active "qwk"}}on{{end}}" {{if eq .Active "qwk"}}aria-current="page"{{end}}>qwk</a>{{end}}
+      {{if .Features.voting}}<a href="/voting"  class="{{if eq .Active "voting"}}on{{end}}"  {{if eq .Active "voting"}}aria-current="page"{{end}}>voting</a>{{end}}
+      {{if .Features.gfiles}}<a href="/gfiles"  class="{{if eq .Active "gfiles"}}on{{end}}"  {{if eq .Active "gfiles"}}aria-current="page"{{end}}>g-files</a>{{end}}
+      {{if .Features.bbslist}}<a href="/bbslist" class="{{if eq .Active "bbslist"}}on{{end}}" {{if eq .Active "bbslist"}}aria-current="page"{{end}}>bbs list</a>{{end}}
+      <a href="/users"   class="{{if eq .Active "users"}}on{{end}}"  {{if eq .Active "users"}}aria-current="page"{{end}}>users</a>
+    </nav>
+    <div class="account">
+      {{if .User}}
+        <a class="acct-handle" href="/users/{{.User.Handle}}">{{.User.Handle}}</a>
+        <a class="acct-badge" href="/settings">settings</a>
+        {{if .IsAdmin}}<a class="acct-badge" href="/sysop">sysop</a>{{end}}
+        <form class="acct-logout" method="post" action="/logout"><button type="submit">logout</button></form>
+      {{else}}
+        <a href="/login" class="{{if eq .Active "login"}}on{{end}}">login</a>
+        <a href="/register" class="acct-reg">register</a>
+      {{end}}
+    </div>
+  </header>
+
+  <div class="nodes" aria-label="nodes online">
+    <span class="label">nodes online</span>
+    {{if .Online}}
+      {{range .Online}}<span class="node">{{.}}</span>{{end}}
+    {{else}}
+      <span class="node empty">- silence on the wire -</span>
+    {{end}}
+  </div>
+
+  <main>
+    {{block "content" .}}{{end}}
+  </main>
+
+  <footer>
+    <span class="grad-text grad">vendetta/x</span>
+    <span class="sep">&middot;</span> an elite station
+    <span class="sep">&middot;</span> <code>telnet vendetta.x</code> / <code>ssh vendetta.x</code> for the old-school face
+    <span class="sep">&middot;</span> <a href="/sysinfo">system info</a>
+    <span class="sep">&middot;</span> <a href="/styleguide">styleguide</a>
+  </footer>
+
+</div>
+</body>
+</html>{{end}}

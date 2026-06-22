@@ -1,0 +1,67 @@
+{{define "profile"}}{{template "base" .}}{{end}}
+{{define "content"}}
+
+<div class="crumb"><a href="/users">users</a> <span class="sep">/</span> {{.User.Handle}}</div>
+
+<section class="panel">
+  <div class="profile-head">
+    {{template "c-avatar" (dict "handle" .User.Handle "size" "lg")}}
+    <div class="ph-id">
+      <span class="ph-handle">{{.User.Handle}}</span>
+      <span class="ph-tag">
+        {{- if .User.Group}}{{upper .User.Group}}{{end -}}
+        {{- if and .User.Group .User.Tagline}} &middot; {{end -}}
+        {{- if .User.Tagline}}{{.User.Tagline}}{{else if not .User.Group}}no tagline{{end -}}
+      </span>
+    </div>
+    <div class="ph-stats">
+      <div class="ph-stat"><span class="v">{{.User.SL}}/{{.User.DSL}}</span><span class="k">sl / dsl</span></div>
+      <div class="ph-stat"><span class="v">{{.User.Posts}}</span><span class="k">posts</span></div>
+      <div class="ph-stat"><span class="v">{{.User.Calls}}</span><span class="k">calls</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="cols">
+
+  <section class="panel">
+    <h3 class="ph">details</h3>
+    <table class="table users-details">
+      <tbody>
+        <tr><th>real name</th><td>{{if .User.RealName}}{{.User.RealName}}{{else}}<span class="empty">&mdash;</span>{{end}}</td></tr>
+        <tr><th>location</th><td>{{if .User.Location}}{{.User.Location}}{{else}}<span class="empty">&mdash;</span>{{end}}</td></tr>
+        {{if .User.Email}}<tr><th>email</th><td>{{.User.Email}}</td></tr>{{end}}
+        <tr><th>first call</th><td>{{ddate .User.FirstCall}}</td></tr>
+        <tr><th>last call</th><td>{{since .User.LastCall}}</td></tr>
+        <tr>
+          <th>flags</th>
+          <td>
+            {{if .Flags}}
+              <span class="users-flags">
+                {{range .Flags}}{{template "c-badge" (dict "label" . "variant" "amber")}}{{end}}
+              </span>
+            {{else}}<span class="empty">none</span>{{end}}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3 class="ph">recent posts <span class="chip">{{len .Posts}}</span></h3>
+    {{if .Posts}}
+      <ul class="msglist">
+        {{range .Posts}}
+          <li>
+            <a class="msubject" href="/boards/{{.BoardID}}">{{if .Subject}}{{.Subject}}{{else}}(no subject){{end}}</a>
+            <span class="mmeta">{{since .Posted}}</span>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="empty">{{.User.Handle}} hasn't posted anything yet.</p>
+    {{end}}
+  </section>
+
+</div>
+{{end}}

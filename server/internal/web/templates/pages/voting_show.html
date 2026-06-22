@@ -1,0 +1,59 @@
+{{define "voting_show"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/voting">voting booth</a> <span class="sep">/</span> {{if .Poll}}{{trunc 48 .Poll.Question}}{{else}}unknown{{end}}</div>
+
+{{if .Poll}}
+  <section class="panel">
+    <h2 class="ph">
+      {{.Poll.Question}}
+      {{if .Poll.Closed}}{{template "c-badge" (dict "label" "closed" "variant" "dim")}}{{end}}
+    </h2>
+    <p class="bc-meta">asked by <b>{{.Poll.Author}}</b> &middot; {{fdate .Poll.Created}} &middot; {{since .Poll.Created}}</p>
+
+    {{if .CanVote}}
+      {{/* vote form: one radio per option, posting back to this poll */}}
+      <form class="postform" method="post" action="/voting/{{.ID}}">
+        <h3 class="ph">cast your vote as <span class="acct-handle">{{.User.Handle}}</span></h3>
+        {{range .Options}}
+          <div class="field">
+            <label class="vote-opt">
+              <input type="radio" name="option_id" value="{{.ID}}" required>
+              <span>{{.Text}}</span>
+            </label>
+          </div>
+        {{end}}
+        <button class="btn btn-primary" type="submit">transmit vote</button>
+      </form>
+    {{else}}
+      {{/* results: c-bar per option with count + percentage */}}
+      <h3 class="ph">results <span class="chip">{{.Total}} {{plural .Total "vote" "votes"}}</span></h3>
+      {{if .Results}}
+        {{range .Results}}
+          <div class="vote-result">
+            <div class="vote-result-head">
+              <span class="vote-result-text">{{.Option.Text}}</span>
+              <span class="vote-result-meta">{{.Option.Votes}} {{plural .Option.Votes "vote" "votes"}} &middot; {{.Pct}}%</span>
+            </div>
+            {{template "c-bar" (dict "n" .Option.Votes "max" $.Max)}}
+          </div>
+        {{end}}
+      {{else}}
+        <p class="empty">This poll has no options.</p>
+      {{end}}
+
+      {{if not .User}}
+        <p class="empty"><a href="/login?next=/voting/{{.ID}}">Log in</a> or <a href="/register?next=/voting/{{.ID}}">register</a> to cast a vote.</p>
+      {{else if .Poll.Closed}}
+        <p class="empty">This poll is closed. The booth has spoken.</p>
+      {{else}}
+        <p class="empty">You've already voted on this poll. Thanks for weighing in.</p>
+      {{end}}
+    {{end}}
+  </section>
+{{else}}
+  <section class="panel">
+    <h2 class="ph">no such poll</h2>
+    <p class="empty">That poll does not exist. Back to <a href="/voting">/voting</a>.</p>
+  </section>
+{{end}}
+{{end}}

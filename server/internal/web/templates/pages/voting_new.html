@@ -1,0 +1,28 @@
+{{define "voting_new"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/voting">voting booth</a> <span class="sep">/</span> new poll</div>
+
+<section class="panel">
+  <h2 class="ph">new poll</h2>
+  <p class="sg-note">Pose a question and give it at least two options. Empty option fields are ignored.</p>
+
+  <form class="postform" method="post" action="/voting/new">
+    <div class="field">
+      <label for="poll-q">question</label>
+      <input id="poll-q" type="text" name="question" maxlength="120" autocomplete="off" placeholder="what's the question?" required>
+    </div>
+
+    {{range .Slots}}
+      <div class="field">
+        <label for="poll-opt-{{.}}">option {{.}}{{if le . 2}} <span class="opt">(required)</span>{{else}} <span class="opt">(optional)</span>{{end}}</label>
+        <input id="poll-opt-{{.}}" type="text" name="option" maxlength="80" autocomplete="off" placeholder="an answer..."{{if le . 2}} required{{end}}>
+      </div>
+    {{end}}
+
+    <div class="sg-row">
+      <button class="btn btn-primary" type="submit">open the booth</button>
+      <a class="btn btn-ghost" href="/voting">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,38 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "bbslist")}}
+
+<section class="panel">
+  <h2 class="ph">
+    bbs list <span class="chip">{{len .Entries}}</span>
+    <a class="btn btn-sm btn-primary" href="/sysop/bbslist/new">+ new board</a>
+  </h2>
+  {{if .Entries}}
+    <table class="table">
+      <thead>
+        <tr><th>name</th><th>address</th><th>software</th><th>sysop</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{range .Entries}}
+          <tr>
+            <td><b>{{.Name}}</b></td>
+            <td>{{if .Address}}{{.Address}}{{else}}&mdash;{{end}}</td>
+            <td>{{if .Software}}{{template "c-badge" (dict "label" .Software "variant" "dim")}}{{else}}&mdash;{{end}}</td>
+            <td>{{if .Sysop}}{{.Sysop}}{{else}}&mdash;{{end}}</td>
+            <td>
+              <div class="cols">
+                <a class="btn btn-sm" href="/sysop/bbslist/{{.ID}}/edit">edit</a>
+                <form method="post" action="/sysop/bbslist/{{.ID}}/delete">
+                  <button class="btn btn-sm" type="submit">delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No boards on file yet. Add the first one.</p>
+  {{end}}
+  <p class="sg-note">Edits and deletions take effect immediately on the public BBS List.</p>
+</section>
+{{end}}

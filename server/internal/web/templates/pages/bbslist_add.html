@@ -1,0 +1,37 @@
+{{define "bbslist_add"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/bbslist">bbs list</a> <span class="sep">/</span> add a board</div>
+
+<section class="panel">
+  <h2 class="ph">add a board</h2>
+  <p class="sg-note">List another board in the directory. Only a name is required.</p>
+
+  <form class="postform" method="post" action="/bbslist/add">
+    <div class="field">
+      <label for="bbs-name">name <span class="opt">(required)</span></label>
+      <input id="bbs-name" type="text" name="name" maxlength="60" autocomplete="off" placeholder="board name" required>
+    </div>
+    <div class="field">
+      <label for="bbs-address">address <span class="opt">(optional)</span></label>
+      <input id="bbs-address" type="text" name="address" maxlength="80" autocomplete="off" placeholder="host:port or dialup">
+    </div>
+    <div class="field">
+      <label for="bbs-software">software <span class="opt">(optional)</span></label>
+      <input id="bbs-software" type="text" name="software" maxlength="40" autocomplete="off" placeholder="Mystic, Synchronet, ...">
+    </div>
+    <div class="field">
+      <label for="bbs-sysop">sysop <span class="opt">(optional)</span></label>
+      <input id="bbs-sysop" type="text" name="sysop" maxlength="40" autocomplete="off" placeholder="who runs it?">
+    </div>
+    <div class="field">
+      <label for="bbs-descr">description <span class="opt">(optional)</span></label>
+      <textarea id="bbs-descr" name="descr" rows="3" maxlength="240" placeholder="what's it about?"></textarea>
+    </div>
+
+    <div class="sg-row">
+      <button class="btn btn-primary" type="submit">add to the list</button>
+      <a class="btn btn-ghost" href="/bbslist">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

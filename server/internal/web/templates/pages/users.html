@@ -1,0 +1,26 @@
+{{define "users"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">user directory <span class="chip">{{len .Users}} {{plural (len .Users) "user" "users"}}</span></h2>
+  {{if .Users}}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>handle</th>
+          <th>group</th>
+          <th>sl</th>
+          <th class="num">posts</th>
+          <th class="num">last call</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Users}}
+          {{template "users-row" .}}
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No users on record yet.</p>
+  {{end}}
+</section>
+{{end}}

@@ -1,0 +1,38 @@
+{{/* =============================================================================
+   VENDETTA/X -- files feature partials
+   -----------------------------------------------------------------------------
+   Namespaced with the "files-" prefix so they never collide with shared "c-"
+   components or other feature partials. These compose the established design
+   system (.file-row, c-badge, .btn .btn-sm, .empty) -- no new visual
+   vocabulary. See /styleguide ".file-row" for the canonical markup.
+   ========================================================================== */}}
+
+{{/* -----------------------------------------------------------------------------
+   files-row -- one file in an area, rendered as the styleguide .file-row.
+   Left: filename + description + uploader/age meta. Middle: a size c-badge in
+   .fr-badges. Right: the download affordance in .fr-dl.
+
+   The "get" control is a signed, time-limited download link (see web_download.go);
+   when no url is supplied it falls back to a disabled control rather than a dead
+   link.
+
+   keys:
+     file (store.FileEntry, required)  the file entry
+     url  (string, optional)           the signed /dl/<token> download URL
+   --------------------------------------------------------------------------- */}}
+{{define "files-row"}}
+<div class="file-row">
+  <div class="fr-main">
+    <div class="fr-name">{{.file.Filename}}</div>
+    {{if .file.Desc}}<div class="fr-desc">{{.file.Desc}}</div>{{end}}
+    <div class="fr-meta">uploaded by {{with .file.Uploader}}{{.}}{{else}}anon{{end}} &middot; {{since .file.Uploaded}} &middot; {{.file.Downloads}} {{plural .file.Downloads "download" "downloads"}}</div>
+  </div>
+  <span class="fr-badges">
+    {{template "c-badge" (dict "label" (fsize .file.Size) "variant" "dim")}}
+  </span>
+  <span class="fr-dl">
+    {{if .url}}<a class="btn btn-sm" href="{{.url}}" title="temporary download link (expires)">get</a>
+    {{else}}<span class="btn btn-sm" aria-disabled="true" title="unavailable">get</span>{{end}}
+  </span>
+</div>
+{{- end}}

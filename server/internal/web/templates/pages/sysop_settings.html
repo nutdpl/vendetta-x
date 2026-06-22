@@ -1,0 +1,68 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "settings")}}
+
+{{if .Saved}}<p class="form-error" style="border-color:var(--green);color:var(--green)">Settings saved.</p>{{end}}
+
+<form method="post" action="/sysop/settings" class="authform" autocomplete="off">
+<div class="cols">
+
+  <section class="panel">
+    <h2 class="ph">board identity</h2>
+    <div class="field">
+      <label for="s-name">board name</label>
+      <input id="s-name" type="text" name="board_name" maxlength="60" value="{{.BoardName}}">
+    </div>
+    <div class="field">
+      <label for="s-tag">tagline</label>
+      <input id="s-tag" type="text" name="tagline" maxlength="80" value="{{.Tagline}}">
+    </div>
+    <div class="field">
+      <label for="s-sysop">sysop name</label>
+      <input id="s-sysop" type="text" name="board_sysop" maxlength="40" value="{{.Sysop}}">
+    </div>
+    <p class="sg-note">The name shows in the telnet/ssh banner and screen headers. The tagline appears under the web masthead. The sysop name is written into door drop files.</p>
+  </section>
+
+  <section class="panel">
+    <h2 class="ph">new-user defaults</h2>
+    <div class="cols">
+      <div class="field">
+        <label for="s-nsl">SL</label>
+        <input id="s-nsl" type="number" name="newuser_sl" min="0" max="255" value="{{.NewUserSL}}">
+      </div>
+      <div class="field">
+        <label for="s-ndsl">DSL</label>
+        <input id="s-ndsl" type="number" name="newuser_dsl" min="0" max="255" value="{{.NewUserDSL}}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="s-ngrp">group</label>
+      <input id="s-ngrp" type="text" name="newuser_group" maxlength="20" value="{{.NewUserGroup}}">
+    </div>
+    <p class="sg-note">Applied to accounts created from the new-user signup.</p>
+  </section>
+
+</div>
+
+  <section class="panel">
+    <h2 class="ph">features <span class="chip">{{len .Features}}</span></h2>
+    <p class="sg-note">Switch a feature off to hide it on every face. Disabled features vanish from the menus; the sysop tools here keep working.</p>
+    <table class="table">
+      <thead><tr><th>on</th><th>feature</th><th>description</th></tr></thead>
+      <tbody>
+        {{range .Features}}
+          <tr>
+            <td><input type="checkbox" name="feature_{{.Key}}" value="1" {{if .On}}checked{{end}}></td>
+            <td>{{.Label}}</td>
+            <td class="sg-note">{{.Desc}}</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <div class="authactions">
+    <button class="btn btn-primary" type="submit">save settings</button>
+  </div>
+</form>
+{{end}}

@@ -1,0 +1,77 @@
+{{define "files"}}{{template "base" .}}{{end}}
+{{define "content"}}
+
+{{/* segmented control across the file areas -- styleguide .tabs / .tab.
+     "all areas" is the default/unselected state; each area tab carries its
+     file count and lights up (.on) when it is the selected area. */}}
+{{if .Tabs}}
+<div class="tabs">
+  <a class="tab{{if not .Selected}} on{{end}}" href="/files"{{if not .Selected}} aria-current="page"{{end}}>all areas</a>
+  {{range .Tabs}}
+    <a class="tab{{if and $.Selected (eq $.Selected.ID .Area.ID)}} on{{end}}"
+       href="/files?area={{.Area.ID}}"
+       {{if and $.Selected (eq $.Selected.ID .Area.ID)}}aria-current="page"{{end}}>{{.Area.Name}} &middot; {{.Count}}</a>
+  {{end}}
+</div>
+{{end}}
+
+<section class="panel">
+  {{if .Selected}}
+
+    <h2 class="ph">
+      <span class="files-crumb"><a href="/files">file areas</a> <span class="sep">/</span> [{{.Selected.Tag}}] {{.Selected.Name}}</span>
+      <span class="chip">{{len .Files}} {{plural (len .Files) "file" "files"}}</span>
+    </h2>
+
+    <div class="files-areahead">
+      <div class="files-areatitle">
+        <span class="files-areaname">{{.Selected.Name}}</span>
+        {{if .Selected.ACS}}
+          {{template "c-badge" (dict "label" .Selected.ACS "variant" "red")}}
+        {{else}}
+          {{template "c-badge" (dict "label" "open" "variant" "dim")}}
+        {{end}}
+      </div>
+      {{if .Selected.Desc}}<p class="files-areadesc">{{.Selected.Desc}}</p>{{end}}
+    </div>
+
+    {{if .Files}}
+      <div class="files-list">
+        {{range .Files}}
+          {{template "files-row" (dict "file" .File "url" .URL)}}
+        {{end}}
+      </div>
+    {{else}}
+      <p class="empty">No files in this area yet.{{if .CanUpload}} Be the first to upload below.{{end}}</p>
+    {{end}}
+
+    {{if .CanUpload}}
+      <form class="uploadform" method="post" action="/files/{{.Selected.ID}}/upload" enctype="multipart/form-data">
+        <h3 class="ph">upload to {{.Selected.Name}}</h3>
+        <div class="field">
+          <label for="up-file">file <span class="opt">(max {{.MaxMB}} MB)</span></label>
+          <input id="up-file" type="file" name="file" required>
+        </div>
+        <div class="field">
+          <label for="up-desc">description <span class="opt">(optional)</span></label>
+          <input id="up-desc" type="text" name="description" maxlength="100" autocomplete="off" placeholder="what is it?">
+        </div>
+        <button class="btn btn-primary" type="submit">upload</button>
+      </form>
+    {{else if not .User}}
+      <p class="empty"><a href="/login?next=/files?area={{.Selected.ID}}">Log in</a> to upload to this area.</p>
+    {{end}}
+
+  {{else}}
+
+    <h2 class="ph">file areas <span class="chip">{{len .Tabs}}</span></h2>
+    {{if .Tabs}}
+      <p class="empty">Pick an area above to browse its files.</p>
+    {{else}}
+      <p class="empty">No file areas yet.</p>
+    {{end}}
+
+  {{end}}
+</section>
+
+{{end}}

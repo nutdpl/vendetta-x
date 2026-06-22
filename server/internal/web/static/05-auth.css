@@ -1,0 +1,81 @@
+/* === AUTH + ACCOUNT ======================================================
+   Masthead account strip (login state) and the login/register forms.
+   Colors come from the design tokens; spacing is explicit so this sheet is
+   self-contained and order-independent after 00-base.css. */
+
+/* -- masthead account strip -- */
+.account {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--fz-sm, 12px);
+}
+.account a {
+  color: var(--ink-dim, #8b909c);
+  text-decoration: none;
+  transition: color var(--t-fast, .12s) ease;
+}
+.account a:hover { color: var(--cyan, #36e6f0); }
+.account .acct-handle {
+  color: var(--cyan, #36e6f0);
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.account .acct-reg {
+  border: 1px solid var(--line, #1c1f29);
+  border-radius: var(--r-sm, 4px);
+  padding: 3px 9px;
+  color: var(--ink, #cdd1d8);
+}
+.account .acct-reg:hover {
+  border-color: var(--cyan, #36e6f0);
+  color: var(--cyan, #36e6f0);
+}
+.acct-badge {
+  font-size: var(--fz-xs, 11px);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--red, #ff3b54);
+  border: 1px solid var(--red, #ff3b54);
+  border-radius: var(--r-pill, 999px);
+  padding: 1px 7px;
+}
+.acct-logout { display: inline; margin: 0; }
+.acct-logout button {
+  background: none;
+  border: none;
+  color: var(--ink-dim, #8b909c);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--t-fast, .12s) ease;
+}
+.acct-logout button:hover { color: var(--red, #ff3b54); }
+
+/* -- login / register page -- */
+.authwrap {
+  max-width: 460px;
+  margin: 0 auto;
+}
+.authform { margin-top: 14px; }
+.authactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+.form-error {
+  color: var(--red, #ff3b54);
+  border-left: 2px solid var(--red, #ff3b54);
+  background: rgba(255, 59, 84, 0.06);
+  padding: 8px 12px;
+  margin: 0 0 14px;
+  font-size: var(--fz-sm, 12px);
+}
+.opt { color: var(--ink-faint, #5b606c); font-size: var(--fz-xs, 11px); }
+
+@media (max-width: 560px) {
+  .account { width: 100%; margin: 8px 0 0; }
+}

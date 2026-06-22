@@ -1,0 +1,50 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "users")}}
+
+<section class="panel">
+  <h2 class="ph">edit user &mdash; {{.U.Handle}}</h2>
+  <form method="post" action="/sysop/users/{{.U.ID}}" class="authform" autocomplete="off">
+    <div class="cols">
+      <div class="field">
+        <label for="u-grp">group</label>
+        <input id="u-grp" type="text" name="grp" maxlength="20" value="{{.U.Group}}">
+      </div>
+      <div class="field">
+        <label for="u-flags">flags <span class="sg-note">(e.g. AC)</span></label>
+        <input id="u-flags" type="text" name="flags" maxlength="26" value="{{.U.Flags}}">
+      </div>
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="u-sl">SL <span class="sg-note">(&ge;100 = sysop)</span></label>
+        <input id="u-sl" type="number" name="sl" min="0" max="255" value="{{.U.SL}}">
+      </div>
+      <div class="field">
+        <label for="u-dsl">DSL</label>
+        <input id="u-dsl" type="number" name="dsl" min="0" max="255" value="{{.U.DSL}}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="u-real">real name</label>
+      <input id="u-real" type="text" name="real_name" maxlength="30" value="{{.U.RealName}}">
+    </div>
+    <div class="field">
+      <label for="u-email">email</label>
+      <input id="u-email" type="text" name="email" maxlength="60" value="{{.U.Email}}">
+    </div>
+    <div class="field">
+      <label for="u-loc">location</label>
+      <input id="u-loc" type="text" name="location" maxlength="30" value="{{.U.Location}}">
+    </div>
+    <div class="field">
+      <label for="u-tag">tagline</label>
+      <input id="u-tag" type="text" name="tagline" maxlength="60" value="{{.U.Tagline}}">
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">save user</button>
+      <a class="btn" href="/sysop/users">cancel</a>
+    </div>
+  </form>
+  <p class="sg-note">Handle and password aren't editable here; the user changes those from their own settings.</p>
+</section>
+{{end}}

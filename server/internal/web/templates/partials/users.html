@@ -1,0 +1,45 @@
+{{/* =============================================================================
+   VENDETTA/X -- users feature partials
+   -----------------------------------------------------------------------------
+   Namespaced with the "users-" prefix so they never collide with the shared
+   "c-" components or other features. These compose the established design
+   system (c-avatar, c-badge, .table) -- no new visual vocabulary.
+   ========================================================================== */}}
+
+{{/* -----------------------------------------------------------------------------
+   users-slbadge -- an SL value rendered as a c-badge, its variant chosen by
+   level (the elite tiers glow brighter). Pass the User's .SL int directly.
+   --------------------------------------------------------------------------- */}}
+{{define "users-slbadge"}}
+{{- $sl := . -}}
+{{- if ge $sl 100 -}}
+  {{template "c-badge" (dict "label" (printf "s%d" $sl) "variant" "red")}}
+{{- else if ge $sl 50 -}}
+  {{template "c-badge" (dict "label" (printf "s%d" $sl) "variant" "magenta")}}
+{{- else if ge $sl 10 -}}
+  {{template "c-badge" (dict "label" (printf "s%d" $sl) "variant" "cyan")}}
+{{- else -}}
+  {{template "c-badge" (dict "label" (printf "s%d" $sl) "variant" "dim")}}
+{{- end -}}
+{{end}}
+
+{{/* -----------------------------------------------------------------------------
+   users-row -- one directory row: avatar + handle (links to the profile),
+   group badge, SL badge, posts, and last-call relative time. Pass a User.
+   --------------------------------------------------------------------------- */}}
+{{define "users-row"}}
+<tr>
+  <td>
+    <a class="users-handle" href="/users/{{.Handle}}">
+      {{template "c-avatar" (dict "handle" .Handle "size" "sm")}}
+      <span class="users-name">{{.Handle}}</span>
+    </a>
+  </td>
+  <td>
+    {{if .Group}}{{template "c-badge" (dict "label" (upper .Group) "variant" "dim")}}{{else}}<span class="empty">&mdash;</span>{{end}}
+  </td>
+  <td>{{template "users-slbadge" .SL}}</td>
+  <td class="num">{{.Posts}}</td>
+  <td class="num">{{since .LastCall}}</td>
+</tr>
+{{end}}

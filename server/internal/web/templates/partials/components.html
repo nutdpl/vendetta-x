@@ -1,0 +1,87 @@
+{{/* =============================================================================
+   VENDETTA/X -- shared component partials
+   -----------------------------------------------------------------------------
+   Reusable, parameterized components. Names are namespaced with the "c-" prefix
+   so feature partials (e.g. "boards-msgcard") never collide. Every component
+   takes its arguments through the `dict` func, e.g.
+
+       {{template "c-badge" (dict "label" "s100" "variant" "red")}}
+
+   See /styleguide for each one rendered with real markup. The expected dict
+   keys are documented above each define. Keys are read defensively: optional
+   keys may be omitted and the component still renders.
+
+   Kept defines: c-placeholder (legacy no-op), c-avatar, c-badge, c-stat,
+   c-bar, c-lbrow.
+   ========================================================================== */}}
+{{define "c-placeholder"}}{{end}}
+
+
+{{/* -----------------------------------------------------------------------------
+   c-avatar -- initials chip on a per-handle hue background.
+   keys:
+     handle (string, required)  the handle; drives both initials and hue color
+     size   (string, optional)  "sm" | "lg" ; default medium
+   --------------------------------------------------------------------------- */}}
+{{define "c-avatar"}}
+<span class="avatar{{with .size}} {{.}}{{end}}" style="background:hsl({{hue .handle}} 70% 58%)" title="{{.handle}}">{{initials .handle}}</span>
+{{- end}}
+
+
+{{/* -----------------------------------------------------------------------------
+   c-badge -- a small tag/label.
+   keys:
+     label   (string, required)  the text
+     variant (string, optional)  "cyan"|"red"|"magenta"|"green"|"amber"|"dim"|
+                                 "solid"|"default"  (default => neutral)
+   --------------------------------------------------------------------------- */}}
+{{define "c-badge"}}
+<span class="badge{{with .variant}}{{if ne . "default"}} {{.}}{{end}}{{end}}">{{.label}}</span>
+{{- end}}
+
+
+{{/* -----------------------------------------------------------------------------
+   c-stat -- a single big-number stat tile (compose several inside .stats).
+   keys:
+     val   (any, required)      the big value (number or string)
+     label (string, required)   the caption under it
+     grad  (bool, optional)     true => render value with the gradient fill
+   --------------------------------------------------------------------------- */}}
+{{define "c-stat"}}
+<div class="stat">
+  <div class="val{{if .grad}} grad{{end}}">{{.val}}</div>
+  <span class="lbl">{{.label}}</span>
+</div>
+{{- end}}
+
+
+{{/* -----------------------------------------------------------------------------
+   c-bar -- a thin ratio/progress bar driven by pct.
+   keys:
+     n    (int, required)      current value
+     max  (int, required)      maximum (bar fills n/max)
+     thin (bool, optional)     true => 3px instead of 5px
+   --------------------------------------------------------------------------- */}}
+{{define "c-bar"}}
+<div class="bar{{if .thin}} thin{{end}}"><div class="bar-fill" style="width:{{pct .n .max}}%"></div></div>
+{{- end}}
+
+
+{{/* -----------------------------------------------------------------------------
+   c-lbrow -- one leaderboard row: rank, avatar, handle, value, ratio bar.
+   keys:
+     rank   (int, required)     1-based position; 1/2/3 get accent colors
+     handle (string, required)  the user handle (drives avatar)
+     val    (any, required)     the displayed value (e.g. "1.2M", 4096)
+     n      (int, optional)     numerator for the ratio bar
+     max    (int, optional)     denominator for the ratio bar (omit => no bar)
+   --------------------------------------------------------------------------- */}}
+{{define "c-lbrow"}}
+<div class="lbrow{{if eq .rank 1}} top1{{else if eq .rank 2}} top2{{else if eq .rank 3}} top3{{end}}">
+  <span class="rank">#{{.rank}}</span>
+  {{template "c-avatar" (dict "handle" .handle "size" "sm")}}
+  <a class="who" href="/users/{{.handle}}">{{.handle}}</a>
+  <span class="val">{{.val}}</span>
+  {{if .max}}<div class="lb-bar">{{template "c-bar" (dict "n" .n "max" .max "thin" true)}}</div>{{end}}
+</div>
+{{- end}}

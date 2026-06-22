@@ -1,0 +1,42 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "dash")}}
+
+<section class="panel">
+  <h2 class="ph">sysop dashboard</h2>
+  <div class="stats">
+    {{template "c-stat" (dict "val" .Stats.Online "label" "online" "grad" true)}}
+    {{template "c-stat" (dict "val" .Stats.Users "label" "users")}}
+    {{template "c-stat" (dict "val" .Stats.Messages "label" "messages")}}
+    {{template "c-stat" (dict "val" .Stats.Files "label" "files")}}
+    {{template "c-stat" (dict "val" .Stats.Boards "label" "boards")}}
+    {{template "c-stat" (dict "val" .Stats.Areas "label" "areas")}}
+  </div>
+</section>
+
+<div class="cols">
+  <section class="panel">
+    <h3 class="ph">live nodes <span class="chip">{{len .Nodes}}</span></h3>
+    {{if .Nodes}}
+      <ul class="nodelist">
+        {{range .Nodes}}<li><span class="node-dot"></span>{{.}}</li>{{end}}
+      </ul>
+    {{else}}
+      <p class="empty">No callers on the wire right now.</p>
+    {{end}}
+  </section>
+
+  <section class="panel">
+    <h3 class="ph">server</h3>
+    <table class="kv">
+      <tr><th>board</th><td>{{.Cfg.BoardName}}</td></tr>
+      <tr><th>version</th><td>{{.Cfg.Version}}</td></tr>
+      <tr><th>uptime</th><td>{{.Uptime}}</td></tr>
+      <tr><th>started</th><td>{{fdate .Cfg.Started}}</td></tr>
+      <tr><th>telnet</th><td><code>{{.Cfg.Telnet}}</code></td></tr>
+      <tr><th>ssh</th><td><code>{{.Cfg.SSH}}</code></td></tr>
+      <tr><th>http</th><td><code>{{.Cfg.HTTP}}</code></td></tr>
+      <tr><th>database</th><td><code>{{.Cfg.DB}}</code></td></tr>
+    </table>
+  </section>
+</div>
+{{end}}

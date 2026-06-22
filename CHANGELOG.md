@@ -1,0 +1,53 @@
+# Changelog
+
+All notable changes to Vendetta/X are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
+semantic versioning.
+
+## [0.9.0] - 2026-06-22
+
+The first feature-complete pre-release of the Vendetta/X Go server: three faces
+(telnet :2323, ssh :2222, web :8080) over one SQLite spine, with every main-menu
+command wired and a full sysop configuration program. Pre-1.0 -- everything is
+built, but it hasn't yet had a real-world shakedown.
+
+### Added
+
+- Wired every main-menu command end to end: message bases, file areas (uploads
+  plus signed web downloads), email, voting booth, BBS list, G-files, doors,
+  QWK offline mail, new-files, oneliners/the wall, teleconference, user list,
+  last callers, your stats, system info, and settings.
+- Added the full **sysop configuration program** on the web face at `/sysop`:
+  CRUD over message bases, file areas, users, G-files, the BBS list, voting
+  polls, and the wall, plus global settings — including **per-feature on/off
+  toggles** for email, voting, gfiles, bbslist, doors, qwk, newfiles, oneliners,
+  and teleconference.
+- Added real **QWK offline mail**: packet download and `.REP` reply-upload.
+- Added **external/DOSBox door support**, including drop-file generation so
+  legacy doors can run against the live board.
+- Added **end-to-end board tests** covering the wired menu flows.
+
+### Security & hardening
+
+- TLS for the web face (`-tls-cert`/`-tls-key`, or behind a terminating proxy)
+  with `Secure` session cookies; HTTP read/header/write/idle timeouts.
+- Per-IP **login throttling** on web and telnet; reserved/validated handles.
+- Concurrent-session cap (`-max-nodes`) and an idle-session watchdog (`-idle`)
+  over telnet/ssh; a telnet "press ESC twice to connect" gate that drops bots.
+- Control-byte **sanitization** of user text so ANSI escapes can't reach other
+  callers' screens; a **zip-bomb guard** on QWK reply import.
+- Per-session **panic recovery**, a **sysop audit log**, and **graceful
+  shutdown** that drains HTTP and flushes the database; SQLite `busy_timeout`.
+
+### Changed
+
+- Door drop files (DOOR.SYS / DORINFO1.DEF) now take their system name, sysop
+  name, and DOS path from board settings / per-door config instead of
+  hardcoded values.
+- Archived the original C/DOS implementation under `legacy/` so the repository
+  root is Go-forward; CI now builds and tests the Go server as well.
+
+### Removed
+
+- Removed stray compiled C build artifacts (`*.o` object files) that had been
+  left in the repo root, and updated `.gitignore` so they are never recommitted.

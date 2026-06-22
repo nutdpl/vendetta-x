@@ -1,0 +1,34 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "gfiles")}}
+
+<section class="panel">
+  <h2 class="ph">g-files <span class="chip">{{len .Docs}}</span>
+    <a class="btn btn-sm" href="/sysop/gfiles/new">+ new doc</a>
+  </h2>
+  {{if .Docs}}
+    <table class="table">
+      <thead>
+        <tr><th>category</th><th>title</th><th>author</th><th>added</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{range .Docs}}
+          <tr>
+            <td>{{if .Category}}{{template "c-badge" (dict "label" .Category "variant" "dim")}}{{else}}{{template "c-badge" (dict "label" "none" "variant" "dim")}}{{end}}</td>
+            <td>{{.Title}}</td>
+            <td>{{.Author}}</td>
+            <td>{{since .Added}}</td>
+            <td>
+              <a class="btn btn-sm" href="/sysop/gfiles/{{.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/gfiles/{{.ID}}/delete" style="display:inline">
+                <button class="btn btn-sm" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No documents yet.</p>
+  {{end}}
+</section>
+{{end}}

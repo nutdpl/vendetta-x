@@ -1,0 +1,84 @@
+/* =============================================================================
+   VENDETTA/X -- files feature sheet  (30-files.css)
+   -----------------------------------------------------------------------------
+   Layered on top of 00-base.css. NO new visual vocabulary -- only a few thin
+   spacing/composition helpers for the selected-area header and listing. All
+   color, type and motion come from the base tokens.
+   ========================================================================== */
+
+/* selected-area breadcrumb inside the .ph heading. The base .ph upper-cases
+   and letter-spaces its text; the file path reads better in normal case, so
+   we relax just this span while leaving the rest of .ph untouched. */
+.files-crumb {
+  text-transform: none;
+  letter-spacing: 0.2px;
+  font-weight: 400;
+  color: var(--ink-dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.files-crumb a { color: var(--ink-dim); }
+.files-crumb a:hover { color: var(--cyan); }
+.files-crumb .sep { color: var(--ink-faint); margin: 0 var(--s1); }
+
+/* area header block: name + ACS badge, then description. */
+.files-areahead { margin-bottom: var(--s4); }
+.files-areatitle {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.files-areaname {
+  font-size: var(--fz-lg);
+  font-weight: 700;
+  color: var(--ink-bright);
+}
+.files-areadesc {
+  margin-top: var(--s1);
+  color: var(--ink-dim);
+  font-size: var(--fz-sm);
+}
+
+/* the listing is just a stack of styleguide .file-row entries. */
+.files-list { margin-top: var(--s2); }
+
+/* the download affordance is a disabled-looking control, not a link: dim it
+   and show the not-allowed cursor so it reads as "coming soon". */
+.file-row .fr-dl .btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--ink-faint);
+  border-color: var(--line);
+  opacity: 0.7;
+}
+.file-row .fr-dl .btn[aria-disabled="true"]:hover {
+  border-color: var(--line);
+  color: var(--ink-faint);
+  box-shadow: none;
+}
+
+/* upload form (logged-in users, within an accessible area) */
+.uploadform {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, #1c1f29);
+}
+.uploadform input[type="file"] {
+  color: var(--ink-dim, #8b909c);
+  font: inherit;
+}
+.uploadform input[type="file"]::file-selector-button {
+  background: var(--bg-soft, #07080c);
+  border: 1px solid var(--line, #1c1f29);
+  border-radius: var(--r-sm, 4px);
+  color: var(--ink, #cdd1d8);
+  padding: 5px 10px;
+  margin-right: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.uploadform input[type="file"]::file-selector-button:hover {
+  border-color: var(--cyan, #36e6f0);
+  color: var(--cyan, #36e6f0);
+}

@@ -1,0 +1,89 @@
+{{define "board"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/boards">boards</a> <span class="sep">/</span> {{if .Board}}{{.Board.Name}}{{else}}unknown{{end}}</div>
+
+{{if .Board}}
+  <section class="panel">
+    <h2 class="ph">
+      [{{.Board.Tag}}] {{.Board.Name}}
+      {{if .CanRead}}<span class="chip">{{len .Messages}} {{plural (len .Messages) "msg" "msgs"}}</span>{{end}}
+    </h2>
+
+    <div class="sg-row">
+      {{if .Board.ReadACS}}
+        {{template "c-badge" (dict "label" (printf "read %s" .Board.ReadACS) "variant" "red")}}
+      {{else}}
+        {{template "c-badge" (dict "label" "open read" "variant" "dim")}}
+      {{end}}
+      {{if .Board.PostACS}}
+        {{template "c-badge" (dict "label" (printf "post %s" .Board.PostACS) "variant" "amber")}}
+      {{else}}
+        {{template "c-badge" (dict "label" "open post" "variant" "dim")}}
+      {{end}}
+    </div>
+
+    {{if .Board.Desc}}<p class="bc-desc">{{.Board.Desc}}</p>{{end}}
+  </section>
+
+  {{if .CanRead}}
+    <section class="panel">
+      <h3 class="ph">thread</h3>
+      {{if .Messages}}
+        <div class="thread">
+          {{range .Messages}}
+            <article class="msg">
+              <header class="msg-head">
+                <span class="who">
+                  {{template "c-avatar" (dict "handle" .From)}}
+                  <span class="msg-subj">{{.Subject}}</span>
+                </span>
+                <span class="msg-meta">
+                  from <a href="/users/{{.From}}"><b>{{.From}}</b></a>
+                  {{- if .To}} to <b>{{.To}}</b>{{end}}
+                  &middot; {{fdate .Posted}} &middot; {{since .Posted}}
+                </span>
+              </header>
+              <div class="msg-body">{{nlbr .Body}}</div>
+            </article>
+          {{end}}
+        </div>
+      {{else}}
+        <p class="empty">No messages on this board yet.{{if .CanPost}} Post the first one below.{{end}}</p>
+      {{end}}
+
+      {{if .CanPost}}
+        <form class="postform" method="post" action="/boards/{{.ID}}">
+          <h3 class="ph">post as <span class="acct-handle">{{.User.Handle}}</span></h3>
+          <div class="field">
+            <label for="board-subject">subject</label>
+            <input id="board-subject" type="text" name="subject" maxlength="80" autocomplete="off" placeholder="subject">
+          </div>
+          <div class="field">
+            <label for="board-body">body</label>
+            <textarea id="board-body" name="body" rows="6" placeholder="say something..." required></textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">transmit</button>
+        </form>
+      {{else if not .User}}
+        <p class="empty"><a href="/login?next=/boards/{{.ID}}">Log in</a> or <a href="/register?next=/boards/{{.ID}}">register</a> to post here.</p>
+      {{else}}
+        <p class="empty">You don't have post access on this board (requires <code>{{.Board.PostACS}}</code>).</p>
+      {{end}}
+    </section>
+  {{else}}
+    <section class="panel">
+      <h3 class="ph">restricted</h3>
+      {{if not .User}}
+        <p class="empty">This board requires access <code>{{.Board.ReadACS}}</code>. <a href="/login?next=/boards/{{.ID}}">Log in</a> to see if you qualify.</p>
+      {{else}}
+        <p class="empty">Your account doesn't meet this board's access requirement (<code>{{.Board.ReadACS}}</code>). It's reserved for higher security levels.</p>
+      {{end}}
+    </section>
+  {{end}}
+{{else}}
+  <section class="panel">
+    <h2 class="ph">no such board</h2>
+    <p class="empty">That board does not exist. Back to <a href="/boards">/boards</a>.</p>
+  </section>
+{{end}}
+{{end}}

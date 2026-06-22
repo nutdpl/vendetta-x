@@ -1,0 +1,26 @@
+# Vendetta/X -- main menu. Data-driven: edit hotkeys/commands, no recompile.
+# KEY <hotkey> <acs> <command> [arg]   (GOTO/DISPLAY/LOGOFF are built in)
+# STYLE LIGHTBAR: a moving bar over the |{...} markers in the screen art; the
+# option labels/positions live in art/mainmenu.pp (built by tools/mkmainmenu.py).
+STYLE LIGHTBAR
+SCREEN art/mainmenu.pp
+KEY m - GOTO MSGMENU
+KEY e - EMAIL
+KEY o - ONELINER
+KEY c - PAGE
+KEY w - WHOSON
+KEY f - GOTO FILEMENU
+KEY n - STUB the new-warez scan
+KEY z - STUB your ratio + stats
+KEY q - QWK
+KEY d - DOORS
+KEY l - LASTCALL
+KEY u - USERLIST
+KEY b - BBSLIST
+KEY v - VOTING
+KEY t - GFILES
+KEY i - DISPLAY art/sysinfo.pp
+KEY k - GOTO LBDEMO
+KEY x - GOTO PREFS
+KEY ! SYSOP STUB the sysop menu
+KEY g - LOGOFF

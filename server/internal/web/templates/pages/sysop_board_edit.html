@@ -1,0 +1,44 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "config")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Editing}}edit message base{{else}}new message base{{end}}</h2>
+  <form method="post" action="/sysop/boards" class="authform" autocomplete="off">
+    {{if .Editing}}<input type="hidden" name="id" value="{{.Board.ID}}">{{end}}
+    <div class="field">
+      <label for="b-tag">tag</label>
+      <input id="b-tag" type="text" name="tag" maxlength="20" value="{{.Board.Tag}}" required>
+    </div>
+    <div class="field">
+      <label for="b-name">name</label>
+      <input id="b-name" type="text" name="name" maxlength="60" value="{{.Board.Name}}" required>
+    </div>
+    <div class="field">
+      <label for="b-desc">description</label>
+      <input id="b-desc" type="text" name="descr" maxlength="120" value="{{.Board.Desc}}">
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="b-rsl">min read SL</label>
+        <input id="b-rsl" type="number" name="min_read_sl" min="0" max="255" value="{{.Board.MinReadSL}}">
+      </div>
+      <div class="field">
+        <label for="b-psl">min post SL</label>
+        <input id="b-psl" type="number" name="min_post_sl" min="0" max="255" value="{{.Board.MinPostSL}}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="b-racs">read ACS <span class="sg-note">(empty = open)</span></label>
+      <input id="b-racs" type="text" name="read_acs" maxlength="60" value="{{.Board.ReadACS}}">
+    </div>
+    <div class="field">
+      <label for="b-pacs">post ACS <span class="sg-note">(empty = open)</span></label>
+      <input id="b-pacs" type="text" name="post_acs" maxlength="60" value="{{.Board.PostACS}}">
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Editing}}save base{{else}}create base{{end}}</button>
+      <a class="btn" href="/sysop/boards">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

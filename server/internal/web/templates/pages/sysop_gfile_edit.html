@@ -1,0 +1,32 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "gfiles")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Doc}}edit document{{else}}new document{{end}}</h2>
+  <p class="sg-note">A title is required. The body is shown to callers verbatim.</p>
+
+  <form method="post" action="/sysop/gfiles" class="authform" autocomplete="off">
+    <input type="hidden" name="id" value="{{if .Doc}}{{.Doc.ID}}{{end}}">
+    <div class="field">
+      <label for="g-category">category</label>
+      <input id="g-category" type="text" name="category" maxlength="40" value="{{if .Doc}}{{.Doc.Category}}{{end}}">
+    </div>
+    <div class="field">
+      <label for="g-title">title</label>
+      <input id="g-title" type="text" name="title" maxlength="80" value="{{if .Doc}}{{.Doc.Title}}{{end}}" required>
+    </div>
+    <div class="field">
+      <label for="g-author">author</label>
+      <input id="g-author" type="text" name="author" maxlength="40" value="{{if .Doc}}{{.Doc.Author}}{{end}}">
+    </div>
+    <div class="field">
+      <label for="g-body">body</label>
+      <textarea id="g-body" name="body" rows="14">{{if .Doc}}{{.Doc.Body}}{{end}}</textarea>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Doc}}save changes{{else}}create document{{end}}</button>
+      <a class="btn" href="/sysop/gfiles">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

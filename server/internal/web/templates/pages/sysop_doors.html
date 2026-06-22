@@ -1,0 +1,35 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "doors")}}
+
+<section class="panel">
+  <h2 class="ph">doors <span class="chip">{{len .Doors}}</span>
+    <a class="btn btn-sm" href="/sysop/doors/new" style="float:right">+ new door</a>
+  </h2>
+  {{if .Doors}}
+    <table class="table">
+      <thead>
+        <tr><th>name</th><th>command</th><th>drop type</th><th>enabled</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Doors}}
+          <tr>
+            <td>{{.Name}}</td>
+            <td><code>{{.Command}}</code></td>
+            <td>{{template "c-badge" (dict "label" .DropType "variant" "dim")}}</td>
+            <td>{{if .Enabled}}{{template "c-badge" (dict "label" "enabled" "variant" "green")}}{{else}}{{template "c-badge" (dict "label" "disabled" "variant" "dim")}}{{end}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/doors/{{.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/doors/{{.ID}}/delete" onsubmit="return confirm('Delete this door?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No doors configured. Register the first DOSBox or native door.</p>
+  {{end}}
+  <p class="sg-note">A door's command runs shell-free in its work dir; the board writes the drop file (DOOR.SYS / DORINFO1.DEF) before launching. Disabled doors are hidden from callers.</p>
+</section>
+{{end}}

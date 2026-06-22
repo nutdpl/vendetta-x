@@ -1,0 +1,41 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "voting")}}
+
+<section class="panel">
+  <h2 class="ph">voting booth <span class="chip">{{len .Polls}}</span></h2>
+  {{if .Polls}}
+    <table class="table">
+      <thead>
+        <tr><th>question</th><th>author</th><th class="num">votes</th><th>status</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Polls}}
+          <tr>
+            <td><a href="/voting/{{.Poll.ID}}">{{trunc 60 .Poll.Question}}</a></td>
+            <td>{{.Poll.Author}}</td>
+            <td class="num">{{.Votes}}</td>
+            <td>
+              {{if .Poll.Closed}}
+                {{template "c-badge" (dict "label" "closed" "variant" "dim")}}
+              {{else}}
+                {{template "c-badge" (dict "label" "open" "variant" "green")}}
+              {{end}}
+            </td>
+            <td>
+              <form method="post" action="/sysop/voting/{{.Poll.ID}}/close" style="display:inline">
+                <button class="btn btn-sm" type="submit">{{if .Poll.Closed}}reopen{{else}}close{{end}}</button>
+              </form>
+              <form method="post" action="/sysop/voting/{{.Poll.ID}}/delete" style="display:inline">
+                <button class="btn btn-sm" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <p class="sg-note">Closing a poll stops further votes; deleting removes it and all its votes for good.</p>
+  {{else}}
+    <p class="empty">No polls yet.</p>
+  {{end}}
+</section>
+{{end}}

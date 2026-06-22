@@ -1,0 +1,13 @@
+{{define "boards"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">message boards <span class="chip">{{len .Cards}}</span></h2>
+  {{if .Cards}}
+    {{range .Cards}}
+      {{template "boards-card" .}}
+    {{end}}
+  {{else}}
+    <p class="empty">No boards configured yet. Check back once the sysop wires them up.</p>
+  {{end}}
+</section>
+{{end}}

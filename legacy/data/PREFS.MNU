@@ -1,0 +1,5 @@
+# your defaults submenu (reached via 'x' on the main menu)
+SCREEN art/prefs.pp
+KEY h - STUB changing your handle
+KEY l - STUB changing your location
+KEY q - GOTO MAIN

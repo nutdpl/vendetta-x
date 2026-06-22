@@ -1,0 +1,33 @@
+{{define "mail_compose"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/mail">mail</a> <span class="sep">/</span> compose</div>
+
+<section class="panel">
+  <h2 class="ph">compose mail</h2>
+
+  {{if .Err}}
+    <p class="empty">{{template "c-badge" (dict "label" "error" "variant" "red")}} {{.Err}}</p>
+  {{end}}
+
+  <form class="postform" method="post" action="/mail/compose">
+    <div class="field">
+      <label for="mail-to">to</label>
+      <input id="mail-to" type="text" name="to" maxlength="20" autocomplete="off"
+             placeholder="recipient handle" value="{{.To}}" required>
+    </div>
+    <div class="field">
+      <label for="mail-subject">subject</label>
+      <input id="mail-subject" type="text" name="subject" maxlength="80" autocomplete="off"
+             placeholder="subject" value="{{.Subject}}">
+    </div>
+    <div class="field">
+      <label for="mail-body">body</label>
+      <textarea id="mail-body" name="body" rows="12" placeholder="say something..." required>{{.Body}}</textarea>
+    </div>
+    <div class="sg-row">
+      <button class="btn btn-primary" type="submit">transmit</button>
+      <a class="btn btn-ghost" href="/mail">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

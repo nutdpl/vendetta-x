@@ -1,0 +1,57 @@
+{{define "content"}}
+<div class="authwrap">
+  <section class="panel">
+    {{if eq .Mode "register"}}
+      <h2 class="ph">register</h2>
+      <p class="sg-note">Claim a handle on the station. You can also create your account over telnet or ssh &mdash; same login works everywhere.</p>
+      {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+      <form method="post" action="/register" class="authform" autocomplete="off">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <div class="field">
+          <label for="r-handle">handle</label>
+          <input id="r-handle" type="text" name="handle" maxlength="20" value="{{.Handle}}" required autofocus>
+        </div>
+        <div class="field">
+          <label for="r-pw">password</label>
+          <input id="r-pw" type="password" name="password" required>
+        </div>
+        <div class="field">
+          <label for="r-vpw">verify password</label>
+          <input id="r-vpw" type="password" name="verify" required>
+        </div>
+        <div class="field">
+          <label for="r-real">real name <span class="opt">(optional)</span></label>
+          <input id="r-real" type="text" name="real_name" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="r-loc">location <span class="opt">(optional)</span></label>
+          <input id="r-loc" type="text" name="location" maxlength="30">
+        </div>
+        <div class="authactions">
+          <button class="btn btn-primary" type="submit">create account</button>
+          <a class="btn btn-ghost" href="/login{{if .Next}}?next={{.Next}}{{end}}">have an account? log in</a>
+        </div>
+      </form>
+    {{else}}
+      <h2 class="ph">login</h2>
+      <p class="sg-note">Welcome back. The same account works over telnet and ssh.</p>
+      {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+      <form method="post" action="/login" class="authform" autocomplete="off">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <div class="field">
+          <label for="l-handle">handle</label>
+          <input id="l-handle" type="text" name="handle" maxlength="20" value="{{.Handle}}" required autofocus>
+        </div>
+        <div class="field">
+          <label for="l-pw">password</label>
+          <input id="l-pw" type="password" name="password" required>
+        </div>
+        <div class="authactions">
+          <button class="btn btn-primary" type="submit">log in</button>
+          <a class="btn btn-ghost" href="/register{{if .Next}}?next={{.Next}}{{end}}">new here? register</a>
+        </div>
+      </form>
+    {{end}}
+  </section>
+</div>
+{{end}}

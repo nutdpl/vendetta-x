@@ -1,0 +1,47 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "doors")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Editing}}edit door{{else}}new door{{end}}</h2>
+  <form method="post" action="/sysop/doors" class="authform" autocomplete="off">
+    {{if .Editing}}<input type="hidden" name="id" value="{{.Door.ID}}">{{end}}
+    <div class="field">
+      <label for="d-name">name</label>
+      <input id="d-name" type="text" name="name" maxlength="60" value="{{.Door.Name}}" required>
+    </div>
+    <div class="field">
+      <label for="d-desc">description</label>
+      <input id="d-desc" type="text" name="description" maxlength="120" value="{{.Door.Description}}">
+    </div>
+    <div class="field">
+      <label for="d-cmd">command <span class="sg-note">(shell-free argv, space-separated)</span></label>
+      <input id="d-cmd" type="text" name="command" maxlength="255" value="{{.Door.Command}}"
+        placeholder="dosbox -conf /opt/lord/dosbox.conf -exit">
+    </div>
+    <div class="field">
+      <label for="d-wd">work dir <span class="sg-note">(drop file is written here)</span></label>
+      <input id="d-wd" type="text" name="workdir" maxlength="255" value="{{.Door.WorkDir}}"
+        placeholder="/opt/lord">
+    </div>
+    <div class="field">
+      <label for="d-dt">drop type</label>
+      <select id="d-dt" name="drop_type">
+        <option value="DOOR.SYS" {{if eq .Door.DropType "DOOR.SYS"}}selected{{end}}>DOOR.SYS</option>
+        <option value="DORINFO1.DEF" {{if eq .Door.DropType "DORINFO1.DEF"}}selected{{end}}>DORINFO1.DEF</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="d-dp">DOS path <span class="sg-note">(DOOR.SYS only; the door's DOS-side dir, e.g. C:\LORD &mdash; leave blank if unsure)</span></label>
+      <input id="d-dp" type="text" name="dos_path" maxlength="64" value="{{.Door.DOSPath}}"
+        placeholder="C:\LORD">
+    </div>
+    <div class="field">
+      <label><input type="checkbox" name="enabled" value="1" {{if .Door.Enabled}}checked{{end}}> enabled</label>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Editing}}save door{{else}}create door{{end}}</button>
+      <a class="btn" href="/sysop/doors">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

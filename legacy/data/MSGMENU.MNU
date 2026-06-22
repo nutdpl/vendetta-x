@@ -1,0 +1,8 @@
+# message bases (data-driven: add an area = one KEY line, no recompile)
+# KEY <hotkey> <acs> MSGAREA <tag> <display name...>
+STYLE LIGHTBAR
+SCREEN art/msgmenu.pp
+KEY g - MSGAREA gen general chat
+KEY w - MSGAREA warez warez talk
+KEY s - MSGAREA scene the scene
+KEY q - GOTO MAIN

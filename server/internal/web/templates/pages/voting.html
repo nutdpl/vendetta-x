@@ -1,0 +1,42 @@
+{{define "voting"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">
+    voting booth <span class="chip">{{len .Cards}}</span>
+  </h2>
+  <p class="sg-note">One vote per caller per poll. Cast yours, then watch the bars fill.</p>
+
+  {{if .User}}
+    <div class="sg-row">
+      <a class="btn btn-primary" href="/voting/new">new poll</a>
+    </div>
+  {{else}}
+    <div class="sg-row">
+      <a class="btn" href="/login?next=/voting/new">log in to start a poll</a>
+    </div>
+  {{end}}
+
+  {{if .Cards}}
+    {{range .Cards}}
+      <a class="board-card" href="/voting/{{.Poll.ID}}">
+        <div class="bc-top">
+          <span class="bc-name">{{.Poll.Question}}</span>
+          <span class="bc-badges">
+            {{if .Poll.Closed}}
+              {{template "c-badge" (dict "label" "closed" "variant" "dim")}}
+            {{else if .Voted}}
+              {{template "c-badge" (dict "label" "voted" "variant" "cyan")}}
+            {{else}}
+              {{template "c-badge" (dict "label" "open" "variant" "green")}}
+            {{end}}
+            {{template "c-badge" (dict "label" (printf "%d %s" .Total (plural .Total "vote" "votes")) "variant" "dim")}}
+          </span>
+        </div>
+        <div class="bc-meta">asked by {{.Poll.Author}} &middot; {{since .Poll.Created}}</div>
+      </a>
+    {{end}}
+  {{else}}
+    <p class="empty">No polls yet. {{if .User}}<a href="/voting/new">Start the first one.</a>{{else}}<a href="/login?next=/voting/new">Log in</a> to start the first one.{{end}}</p>
+  {{end}}
+</section>
+{{end}}

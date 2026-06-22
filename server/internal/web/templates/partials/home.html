@@ -1,0 +1,23 @@
+{{/* =============================================================================
+   VENDETTA/X -- home/dashboard feature partials
+   -----------------------------------------------------------------------------
+   Namespaced with the "home-" prefix so they never collide with shared "c-"
+   components or other feature partials. These compose the established design
+   system (c-avatar, c-lbrow, .empty, etc.) -- no new visual vocabulary.
+   ========================================================================== */}}
+
+{{/* -----------------------------------------------------------------------------
+   home-userrow -- one "newest user" / "last caller" line: avatar + linked
+   handle + a quiet relative-time meta. Composes c-avatar + the link pattern
+   from c-lbrow.
+   keys:
+     user (store.User, required)  the user; .Handle drives the avatar + link
+     when (time.Time, required)   the timestamp shown as a "since" meta
+   --------------------------------------------------------------------------- */}}
+{{define "home-userrow"}}
+<div class="home-userrow">
+  {{template "c-avatar" (dict "handle" .user.Handle "size" "sm")}}
+  <a class="who" href="/users/{{.user.Handle}}">{{.user.Handle}}</a>
+  <span class="when">{{since .when}}</span>
+</div>
+{{- end}}

@@ -1,0 +1,59 @@
+# Docker build context is the repo root, but the image only needs server/ and
+# art/. Everything below is excluded to keep the context small and to avoid
+# leaking runtime state or the unrelated DOS/C build artifacts.
+
+# Version control + CI config
+.git
+.gitignore
+.gitattributes
+.github
+
+# --- The legacy DOS/C board (archived; unrelated to this Go server) ---
+# The whole C/DOS project now lives under legacy/; exclude it wholesale, along
+# with any stray build artifacts.
+legacy/
+*.o
+*.obj
+*.OBJ
+*.exe
+*.EXE
+*.map
+*.MAP
+*.lnk
+*.err
+*.ERR
+/build/
+docs/
+
+# --- Runtime / persistent state -- must never enter the build context ---
+*.db
+*.db-wal
+*.db-shm
+vendetta.db*
+# SSH host keys (generated at runtime, never baked into an image)
+vendetta_host_key
+host_key
+*_host_key
+
+# Generated screenshots + logs
+shots/
+*.log
+*.LOG
+
+# Python bytecode / caches
+**/__pycache__/
+*.pyc
+
+# Already-built Go binaries from local dev (rebuilt inside the image)
+/vendx
+/vendx-net
+server/vendx
+server/vxd
+
+# Editor / OS noise
+.DS_Store
+*.swp
+
+# Markdown docs aren't needed in the image (kept small); art/ and server/ stay.
+DESIGN.md
+README.md

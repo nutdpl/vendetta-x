@@ -1,0 +1,52 @@
+{{define "mail"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">
+    electronic mail
+    {{if .Unread}}<span class="chip">{{.Unread}} new</span>{{end}}
+  </h2>
+
+  <div class="tabs">
+    <a class="tab {{if eq .Mode "inbox"}}on{{end}}" href="/mail">inbox{{if .Unread}} ({{.Unread}}){{end}}</a>
+    <a class="tab {{if eq .Mode "sent"}}on{{end}}" href="/mail/sent">sent</a>
+    <span style="flex:1"></span>
+    <a class="btn btn-primary btn-sm" href="/mail/compose">compose</a>
+  </div>
+
+  {{if .Messages}}
+    <table class="table">
+      <thead>
+        <tr>
+          {{if eq .Mode "sent"}}<th>to</th>{{else}}<th>from</th>{{end}}
+          <th>subject</th>
+          <th class="num">when</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Messages}}
+          <tr>
+            <td>
+              {{if eq $.Mode "sent"}}
+                {{template "c-avatar" (dict "handle" .To "size" "sm")}}
+                <a href="/users/{{.To}}">{{.To}}</a>
+              {{else}}
+                {{template "c-avatar" (dict "handle" .From "size" "sm")}}
+                <a href="/users/{{.From}}">{{.From}}</a>
+                {{if not .Read}}{{template "c-badge" (dict "label" "new" "variant" "cyan")}}{{end}}
+              {{end}}
+            </td>
+            <td><a class="msubject" href="/mail/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(no subject){{end}}</a></td>
+            <td class="num" title="{{fdate .Sent}}">{{since .Sent}}</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    {{if eq .Mode "sent"}}
+      <p class="empty">You haven't sent any mail yet. <a href="/mail/compose">Compose one.</a></p>
+    {{else}}
+      <p class="empty">Your mailbox is empty. <a href="/mail/compose">Send someone a message.</a></p>
+    {{end}}
+  {{end}}
+</section>
+{{end}}

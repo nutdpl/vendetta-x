@@ -1,0 +1,152 @@
+name: build
+on: [push, workflow_dispatch]
+
+jobs:
+  # The board that actually ships: the Go server (telnet + ssh + web over one
+  # SQLite spine). Pure Go, no CGO.
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - name: Build, vet, and test the Go server
+        run: |
+          CGO_ENABLED=0 go build ./...
+          go vet ./...
+          go test ./...
+          echo "Go server builds, vets, and passes all tests"
+
+  # The legacy C/DOS implementation (archived under legacy/) -- a co-equal test
+  # bench (DESIGN.md): the strict-C89 core must compile and run natively.
+  host:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build host engine (strict C89), unit-test, run the walkthrough
+        run: |
+          make
+          make test
+          ./vendx auto > /dev/null
+          echo "host build + telnet codec tests + auto walkthrough OK"
+      - name: It answers -- telnet over sockets (io_sock), end-to-end
+        run: |
+          make net-smoke
+          echo "sockets backend serves a real telnet caller (Win98/Win32-ready)"
+
+  # The ship target: 16-bit real-mode DOS via Open Watcom.
+  dos16:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-watcom/setup-watcom@v0
+        with:
+          version: "2.0"
+      - name: Cross-compile VENDX.EXE (16-bit DOS, large model)
+        env:
+          INCLUDE: ${{ env.WATCOM }}/h
+        run: |
+          wcl -q -bcl=dos -ml -zt256 -k16384 -i=core -i=io -fe=VENDX.EXE \
+            core/render.c core/strtab.c core/userbase.c core/callers.c \
+            core/oneliner.c core/msgbase.c core/editor.c core/lightbar.c \
+            core/acs.c core/config.c core/email.c core/voting.c \
+            core/filebase.c core/bbslist.c core/gfiles.c core/qscan.c \
+            core/trashcan.c core/syslog.c core/node.c core/page.c \
+            core/door.c core/xmodem.c core/qwk.c \
+            core/menu.c core/lbmenu.c io/io_local.c src/main.c
+      - name: Cross-compile VXCFG.EXE (the config editor)
+        env:
+          INCLUDE: ${{ env.WATCOM }}/h
+        run: |
+          wcl -q -bcl=dos -ml -zt256 -k16384 -i=core -i=io -fe=VXCFG.EXE \
+            src/vxcfg.c core/config.c core/render.c core/lightbar.c io/io_local.c
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VXCFG-dos16
+          path: legacy/VXCFG.EXE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VENDX-dos16
+          path: legacy/VENDX.EXE
+
+  # VX/32: the engine in 32-bit PROTECTED MODE (flat model, DOS/4GW).
+  # The core is 32-bit-clean by design, so this is mostly a recompile -- and
+  # flat mode has NO 64k DGROUP wall, so the full feature set links with
+  # megabytes to spare. This is the path off the real-mode memory ceiling.
+  # (Native 32-bit telnet stack lands in a later phase.)
+  dos32:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-watcom/setup-watcom@v0
+        with:
+          version: "2.0"
+      - name: Cross-compile VENDX.EXE (32-bit protected mode, flat model)
+        env:
+          INCLUDE: ${{ env.WATCOM }}/h
+        run: |
+          wcl386 -q -bcl=dos4g -mf -i=core -i=io -fe=VENDX.EXE \
+            core/render.c core/strtab.c core/userbase.c core/callers.c \
+            core/oneliner.c core/msgbase.c core/editor.c core/lightbar.c \
+            core/acs.c core/config.c core/email.c core/voting.c \
+            core/filebase.c core/bbslist.c core/gfiles.c core/qscan.c \
+            core/trashcan.c core/syslog.c core/node.c core/page.c \
+            core/door.c core/xmodem.c core/qwk.c \
+            core/menu.c core/lbmenu.c io/io_local.c src/main.c
+          ls -la VENDX.EXE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VENDX-dos32
+          path: legacy/VENDX.EXE
+
+  # VX/32 telnet: the protected-mode board LINKED against a real TCP/IP stack
+  # (Watt-32, flat model). This is the honest milestone -- it proves the network
+  # backend (io/io_watt.c) compiles and links against the stack in protected
+  # mode. It does NOT exercise a live caller: CI has no NIC or packet driver,
+  # so "it answers telnet" still needs an emulator/hardware run. mTCP could
+  # never reach even this point (real-mode only; overflows the 64k DGROUP).
+  dos32-telnet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-watcom/setup-watcom@v0
+        with:
+          version: "2.0"
+      - name: Install Watt-32 build helpers (packet stub + lexer generators)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq nasm flex
+      - name: Build Watt-32 (flat / protected-mode library, pinned commit)
+        run: tools/build-watt32.sh
+      - name: "Cross-compile + link VENDX.EXE (32-bit telnet: io_watt + Watt-32)"
+        env:
+          INCLUDE: ${{ env.WATCOM }}/h
+        run: |
+          wcl386 -q -bcl=dos4g -mf -k16384 -i=core -i=io -i=build/watt32/inc -fe=VENDX.EXE \
+            core/render.c core/strtab.c core/telnet.c core/userbase.c core/callers.c \
+            core/oneliner.c core/msgbase.c core/editor.c core/lightbar.c \
+            core/acs.c core/config.c core/email.c core/voting.c \
+            core/filebase.c core/bbslist.c core/gfiles.c core/qscan.c \
+            core/trashcan.c core/syslog.c core/node.c core/page.c \
+            core/door.c core/xmodem.c core/qwk.c \
+            core/menu.c core/lbmenu.c io/io_watt.c src/main.c \
+            build/watt32/lib/wattcpwf.lib
+          ls -la VENDX.EXE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VENDX-dos32-telnet
+          path: legacy/VENDX.EXE

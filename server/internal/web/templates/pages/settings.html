@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="cols">
+
+  <section class="panel">
+    <h2 class="ph">profile</h2>
+    <p class="sg-note">Edit how you appear across the station. The same account works over telnet and ssh.</p>
+    {{if .OK}}<p class="form-error" style="border-color:var(--green);color:var(--green)">{{.OK}}</p>{{end}}
+    <form method="post" action="/settings" class="authform" autocomplete="off">
+      <div class="field">
+        <label for="s-real">real name</label>
+        <input id="s-real" type="text" name="real_name" maxlength="30" value="{{.User.RealName}}">
+      </div>
+      <div class="field">
+        <label for="s-email">email</label>
+        <input id="s-email" type="text" name="email" maxlength="60" value="{{.User.Email}}">
+      </div>
+      <div class="field">
+        <label for="s-loc">location</label>
+        <input id="s-loc" type="text" name="location" maxlength="30" value="{{.User.Location}}">
+      </div>
+      <div class="field">
+        <label for="s-tag">tagline</label>
+        <input id="s-tag" type="text" name="tagline" maxlength="60" value="{{.User.Tagline}}">
+      </div>
+      <div class="authactions">
+        <button class="btn btn-primary" type="submit">save profile</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 class="ph">change password</h2>
+    <p class="sg-note">Pick a new password. Leave the current field blank if your account has none on file yet.</p>
+    {{if .PwOK}}<p class="form-error" style="border-color:var(--green);color:var(--green)">{{.PwOK}}</p>{{end}}
+    {{if .PwErr}}<p class="form-error">{{.PwErr}}</p>{{end}}
+    <form method="post" action="/settings/password" class="authform" autocomplete="off">
+      <div class="field">
+        <label for="s-cur">current password</label>
+        <input id="s-cur" type="password" name="current">
+      </div>
+      <div class="field">
+        <label for="s-new">new password</label>
+        <input id="s-new" type="password" name="new" required>
+      </div>
+      <div class="field">
+        <label for="s-vpw">verify password</label>
+        <input id="s-vpw" type="password" name="verify" required>
+      </div>
+      <div class="authactions">
+        <button class="btn btn-primary" type="submit">change password</button>
+      </div>
+    </form>
+  </section>
+
+</div>
+{{end}}

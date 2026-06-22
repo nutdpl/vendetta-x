@@ -1,0 +1,55 @@
+{{define "content"}}
+<section class="panel">
+  <h2 class="ph">qwk offline mail</h2>
+  <p class="sg-note">A QWK packet bundles the boards you can read into a single
+  <code>VENDX.QWK</code> archive you download, read offline in any QWK reader, and
+  reply to. Upload the resulting <code>.REP</code> reply packet and your offline
+  posts land back on the boards.</p>
+
+  {{if .Posted}}
+    <p class="sg-note" style="color:var(--green)">Imported {{.Posted}}
+    {{plural .Posted "reply" "replies"}} from your reply packet.</p>
+  {{end}}
+
+  <div class="stats">
+    {{template "c-stat" (dict "val" .Boards "label" "readable boards" "grad" true)}}
+    {{template "c-stat" (dict "val" .Messages "label" "messages")}}
+  </div>
+
+  {{if .Boards}}
+    <p class="sg-note">Your packet carries {{.Messages}}
+    {{plural .Messages "message" "messages"}} across {{.Boards}}
+    {{plural .Boards "conference" "conferences"}} (one per board you can read).</p>
+  {{else}}
+    <p class="empty">There are no boards you can read right now, so a packet would
+    be empty.</p>
+  {{end}}
+</section>
+
+<div class="cols">
+  <section class="panel">
+    <h3 class="ph">download packet</h3>
+    <p class="sg-note">Grab <code>VENDX.QWK</code> &mdash; CONTROL.DAT plus a
+    MESSAGES.DAT of every readable board's posts, in standard QWK format.</p>
+    <div class="authactions">
+      <a class="btn btn-primary" href="/qwk/download">download VENDX.QWK</a>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3 class="ph">upload reply packet</h3>
+    <p class="sg-note">Select your <code>.REP</code> (a ZIP containing
+    <code>VENDX.MSG</code>). Replies to boards you can post to are posted as you;
+    anything else is skipped.</p>
+    <form method="post" action="/qwk/upload" enctype="multipart/form-data" class="authform">
+      <div class="field">
+        <label for="qwk-packet">reply packet</label>
+        <input id="qwk-packet" type="file" name="packet" accept=".rep,.zip,.REP,.ZIP" required>
+      </div>
+      <div class="authactions">
+        <button class="btn btn-primary" type="submit">upload replies</button>
+      </div>
+    </form>
+  </section>
+</div>
+{{end}}

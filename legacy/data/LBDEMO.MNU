@@ -1,0 +1,10 @@
+# Lightbar demo menu. STYLE LIGHTBAR runs a moving highlight over the
+# |{R,C,K,Label} option markers the sysop placed in the SCREEN art -- the
+# option positions live in the .pp, not the code. Hotkeys still work, and
+# options whose ACS the caller fails are dropped from the bar automatically.
+STYLE LIGHTBAR
+SCREEN art/lbdemo.pp
+KEY f - GOTO FILEMENU
+KEY m - GOTO MSGMENU
+KEY w - WHOSON
+KEY g - GOTO MAIN

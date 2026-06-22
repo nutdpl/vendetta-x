@@ -1,0 +1,85 @@
+/* === SYSOP PANEL =========================================================
+   Sub-nav, node monitor, key/value server table, and the inline level form.
+   Colors from the design tokens; spacing explicit so this sheet is
+   order-independent. */
+
+.sysnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 4px 0 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line, #1c1f29);
+  font-size: var(--fz-sm, 12px);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.sysnav a { color: var(--ink-dim, #8b909c); text-decoration: none; }
+.sysnav a:hover { color: var(--cyan, #36e6f0); }
+.sysnav a.on { color: var(--cyan, #36e6f0); border-bottom: 2px solid var(--cyan, #36e6f0); padding-bottom: 6px; }
+
+/* live node monitor */
+.nodelist { list-style: none; margin: 6px 0 0; padding: 0; }
+.nodelist li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line-soft, #14161e);
+  font-size: var(--fz-sm, 13px);
+}
+.node-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green, #3bf08a);
+  box-shadow: 0 0 8px var(--green, #3bf08a);
+  flex: none;
+}
+
+/* server key/value table */
+table.kv { width: 100%; border-collapse: collapse; }
+table.kv th {
+  text-align: left;
+  color: var(--ink-dim, #8b909c);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  font-size: var(--fz-xs, 11px);
+  padding: 5px 14px 5px 0;
+  vertical-align: top;
+  white-space: nowrap;
+  width: 1%;
+}
+table.kv td { padding: 5px 0; color: var(--ink, #cdd1d8); }
+
+/* users management */
+.sysop-users .userlink { display: inline-flex; align-items: center; gap: 8px; color: var(--cyan, #36e6f0); text-decoration: none; }
+.sysop-users .userlink:hover { color: #fff; }
+.levelform { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.levelform label { font-size: var(--fz-xs, 11px); color: var(--ink-dim, #8b909c); display: inline-flex; align-items: center; gap: 4px; }
+.levelform input[type="number"] {
+  width: 56px;
+  background: var(--bg-soft, #07080c);
+  border: 1px solid var(--line, #1c1f29);
+  border-radius: var(--r-sm, 4px);
+  color: var(--ink, #cdd1d8);
+  padding: 3px 6px;
+  font: inherit;
+}
+.levelform input[type="number"]:focus { outline: 2px solid var(--cyan, #36e6f0); outline-offset: 1px; }
+
+/* sysop CRUD: destructive action button + per-row action cells */
+.btn-danger {
+  color: var(--red, #ff3b54);
+  border-color: rgba(255,59,84,0.40);
+  background: rgba(255,59,84,0.06);
+}
+.btn-danger:hover {
+  color: #fff;
+  border-color: var(--red, #ff3b54);
+  background: rgba(255,59,84,0.18);
+  box-shadow: 0 0 12px rgba(255,59,84,0.25);
+}
+.rowacts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rowacts form { margin: 0; display: inline; }
+.rowacts .btn { margin: 0; }

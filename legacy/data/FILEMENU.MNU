@@ -1,0 +1,8 @@
+# file areas (data-driven: add an area = one KEY line)
+# KEY <hotkey> <acs> FILEAREA <tag> <display name...>
+STYLE LIGHTBAR
+SCREEN art/filemenu.pp
+KEY w - FILEAREA warez warez vault
+KEY u - FILEAREA util utilities
+KEY a - FILEAREA ansi ansi & art
+KEY q - GOTO MAIN

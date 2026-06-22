@@ -1,0 +1,6 @@
+# Vendetta/X -- string table. Edit freely; the board boots even if this
+# file is missing or damaged (compiled defaults fill any gaps). Values use
+# \r \n \t \e escapes; pipe codes and |tokens render live.
+HANDLE_PROMPT=|07\r\n  |15who goes there|08? |08(handle, or 'new')|08: |07
+LASTCALL_TITLE=recent callers
+GOODBYE=|07\r\n  |12NO CARRIER|08 -- |07later, |14|UH|07.\r\n

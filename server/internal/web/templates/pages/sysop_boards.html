@@ -1,0 +1,36 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "config")}}
+
+<section class="panel">
+  <h2 class="ph">message bases <span class="chip">{{len .Boards}}</span>
+    <a class="btn btn-sm" href="/sysop/boards/new" style="float:right">+ new base</a>
+  </h2>
+  {{if .Boards}}
+    <table class="table">
+      <thead>
+        <tr><th>tag</th><th>name</th><th>read acs</th><th>post acs</th><th class="num">msgs</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Boards}}
+          <tr>
+            <td><code>{{.Board.Tag}}</code></td>
+            <td><a href="/boards/{{.Board.ID}}">{{.Board.Name}}</a></td>
+            <td>{{if .Board.ReadACS}}{{template "c-badge" (dict "label" .Board.ReadACS "variant" "red")}}{{else}}{{template "c-badge" (dict "label" "open" "variant" "dim")}}{{end}}</td>
+            <td>{{if .Board.PostACS}}{{template "c-badge" (dict "label" .Board.PostACS "variant" "amber")}}{{else}}{{template "c-badge" (dict "label" "open" "variant" "dim")}}{{end}}</td>
+            <td class="num">{{.Count}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/boards/{{.Board.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/boards/{{.Board.ID}}/delete" onsubmit="return confirm('Delete this base and all its messages?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No message bases configured. Create the first one.</p>
+  {{end}}
+  <p class="sg-note">Deleting a base also deletes every message posted to it. ACS strings gate read/post access (empty = open).</p>
+</section>
+{{end}}

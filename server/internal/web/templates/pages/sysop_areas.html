@@ -1,0 +1,35 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "areas")}}
+
+<section class="panel">
+  <h2 class="ph">file areas <span class="chip">{{len .Areas}}</span>
+    <a class="btn btn-sm" href="/sysop/areas/new" style="float:right">+ new area</a>
+  </h2>
+  {{if .Areas}}
+    <table class="table">
+      <thead>
+        <tr><th>tag</th><th>name</th><th>acs</th><th class="num">files</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Areas}}
+          <tr>
+            <td><code>{{.Area.Tag}}</code></td>
+            <td><a href="/files?area={{.Area.ID}}">{{.Area.Name}}</a></td>
+            <td>{{if .Area.ACS}}{{template "c-badge" (dict "label" .Area.ACS "variant" "red")}}{{else}}{{template "c-badge" (dict "label" "open" "variant" "dim")}}{{end}}</td>
+            <td class="num">{{.Count}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/areas/{{.Area.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/areas/{{.Area.ID}}/delete" onsubmit="return confirm('Delete this area and all its files?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No file areas configured. Create the first one.</p>
+  {{end}}
+  <p class="sg-note">Deleting an area also deletes every file in it. The ACS string gates access (empty = open).</p>
+</section>
+{{end}}

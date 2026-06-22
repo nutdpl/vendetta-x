@@ -1,0 +1,108 @@
+{{define "home"}}{{template "base" .}}{{end}}
+{{define "content"}}
+
+<section class="hero">
+  <p class="lead">Welcome to the station. Cut the modem hiss, keep the attitude.
+  Below: the pulse of the board &mdash; live stats, the latest from the boards,
+  the wall where the scene leaves its mark, and who's running the rankings.</p>
+</section>
+
+{{/* ============================== STAT TILES ============================ */}}
+<div class="stats">
+  {{template "c-stat" (dict "val" .TotalUsers "label" (plural .TotalUsers "user" "users") "grad" true)}}
+  {{template "c-stat" (dict "val" .TotalMsgs "label" (plural .TotalMsgs "message" "messages"))}}
+  {{template "c-stat" (dict "val" .TotalFiles "label" (plural .TotalFiles "file" "files"))}}
+  {{template "c-stat" (dict "val" .NodesOnline "label" "online")}}
+</div>
+
+{{/* ============================== ROW 1: ACTIVITY ====================== */}}
+<div class="cols">
+
+  <section class="panel">
+    <h2 class="ph">recent messages{{if .Recent}} <span class="chip">{{len .Recent}}</span>{{end}}</h2>
+    {{if .Recent}}
+      <ul class="msglist">
+        {{range .Recent}}
+          <li>
+            <a class="msubject" href="/boards/{{.BoardID}}">{{trunc 60 .Subject}}</a>
+            <span class="mmeta">by <b>{{.From}}</b> &middot; {{since .Posted}}</span>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="empty">No messages yet. The boards are quiet &mdash; be the first to break it on <a href="/boards">/boards</a>.</p>
+    {{end}}
+  </section>
+
+  <section class="panel" id="wall">
+    <h2 class="ph">the wall{{if .Oneliners}} <span class="chip">{{len .Oneliners}}</span>{{end}}</h2>
+    {{if .Oneliners}}
+      <ul class="wall">
+        {{range .Oneliners}}
+          <li><span class="wtext">{{trunc 120 .Text}}</span> <span class="wauth">&mdash; {{.Author}}</span></li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="empty">The wall is blank. Tag it.</p>
+    {{end}}
+
+    <form class="onelineform" method="post" action="/oneliner">
+      <input type="text" name="author" placeholder="handle" maxlength="32" autocomplete="off">
+      <input type="text" name="text" placeholder="leave your mark..." maxlength="120" autocomplete="off" required>
+      <button type="submit">tag</button>
+    </form>
+  </section>
+
+</div>
+
+{{/* ============================== ROW 2: SOCIAL ======================== */}}
+<div class="cols c3">
+
+  <section class="panel">
+    <h2 class="ph">top posters</h2>
+    {{if .TopPosters}}
+      {{range $i, $u := .TopPosters}}
+        {{template "c-lbrow" (dict "rank" (add $i 1) "handle" $u.Handle "val" $u.Posts "n" $u.Posts "max" $.TopPosts)}}
+      {{end}}
+    {{else}}
+      <p class="empty">No posters yet. The rankings are wide open.</p>
+    {{end}}
+  </section>
+
+  <section class="panel">
+    <h2 class="ph">top callers</h2>
+    {{if .TopCallers}}
+      {{range $i, $u := .TopCallers}}
+        {{template "c-lbrow" (dict "rank" (add $i 1) "handle" $u.Handle "val" $u.Calls "n" $u.Calls "max" $.TopCalls)}}
+      {{end}}
+    {{else}}
+      <p class="empty">Nobody's called in. The wire is cold.</p>
+    {{end}}
+  </section>
+
+  <section class="panel">
+    <h2 class="ph">last callers</h2>
+    {{if .LastCallers}}
+      {{range .LastCallers}}
+        {{template "home-userrow" (dict "user" . "when" .LastCall)}}
+      {{end}}
+    {{else}}
+      <p class="empty">No callers on record. Be the first to dial in.</p>
+    {{end}}
+  </section>
+
+</div>
+
+{{/* ============================== ROW 3: NEWEST ======================== */}}
+<section class="panel">
+  <h2 class="ph">newest users{{if .NewestUsers}} <span class="chip">{{len .NewestUsers}}</span>{{end}}</h2>
+  {{if .NewestUsers}}
+    {{range .NewestUsers}}
+      {{template "home-userrow" (dict "user" . "when" .FirstCall)}}
+    {{end}}
+  {{else}}
+    <p class="empty">No users have signed on yet. The roster is empty.</p>
+  {{end}}
+</section>
+
+{{end}}

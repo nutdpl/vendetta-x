@@ -1,0 +1,292 @@
+{{/* The living styleguide -- the CONTRACT for the four feature agents. Every
+component, token, partial-call and class name is demonstrated here with real
+markup and a short "when to use" note. Demo data is hardcoded inline (the page
+only receives .Title/.Active/.Online). If you change a component, update it
+here so the next agents build against the truth. */}}
+{{define "content"}}
+
+<section class="hero">
+  <p class="lead">The Vendetta/X design system. Below is every token and component
+  the feature pages compose, shown with its real markup. Copy the class names and
+  <code>{{"{{template ...}}"}}</code> calls verbatim.</p>
+</section>
+
+{{/* ============================== COLOR TOKENS ============================ */}}
+<section class="panel sg-section">
+  <h2 class="ph">color tokens <span class="chip">:root</span></h2>
+  <p class="sg-note">Use the CSS variables, never raw hex. Ink text meets WCAG AA on the ink-black ground.</p>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:#050608"></div><div class="meta"><span class="name">--bg</span><span class="hex">#050608</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#0a0b10"></div><div class="meta"><span class="name">--bg-panel</span><span class="hex">#0a0b10</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#07080c"></div><div class="meta"><span class="name">--bg-soft</span><span class="hex">#07080c</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#cdd1d8"></div><div class="meta"><span class="name">--ink</span><span class="hex">#cdd1d8</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#8b909c"></div><div class="meta"><span class="name">--ink-dim</span><span class="hex">#8b909c</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#5b606c"></div><div class="meta"><span class="name">--ink-faint</span><span class="hex">#5b606c</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#36e6f0"></div><div class="meta"><span class="name">--cyan</span><span class="hex">#36e6f0</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#3a6df0"></div><div class="meta"><span class="name">--blue</span><span class="hex">#3a6df0</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#ff3b54"></div><div class="meta"><span class="name">--red</span><span class="hex">#ff3b54</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#e23bff"></div><div class="meta"><span class="name">--magenta</span><span class="hex">#e23bff</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#3bf08a"></div><div class="meta"><span class="name">--green</span><span class="hex">#3bf08a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#f0b53a"></div><div class="meta"><span class="name">--amber</span><span class="hex">#f0b53a</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(90deg,#3a6df0,#ff3b54 55%,#e23bff)"></div><div class="meta"><span class="name">--grad</span><span class="hex">phiber2</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#1c1f29"></div><div class="meta"><span class="name">--line</span><span class="hex">#1c1f29</span></div></div>
+  </div>
+</section>
+
+{{/* ============================== TYPE SCALE ============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">type scale</h2>
+  <p class="sg-note">System monospace stack (<code>--mono</code>). One base size (14px); scale up for display, down for meta.</p>
+  <div class="type-scale">
+    <div><span class="tag">--fz-3xl 34</span><br><span style="font-size:34px">VENDETTA/X display</span></div>
+    <div><span class="tag">--fz-2xl 26</span><br><span style="font-size:26px">section heading</span></div>
+    <div><span class="tag">--fz-xl 20</span><br><span style="font-size:20px">subhead</span></div>
+    <div><span class="tag">--fz-lg 16</span><br><span style="font-size:16px">lead / card name</span></div>
+    <div><span class="tag">--fz-md 14</span><br><span style="font-size:14px">body text -- the default</span></div>
+    <div><span class="tag">--fz-sm 12</span><br><span style="font-size:12px">meta, descriptions</span></div>
+    <div><span class="tag">--fz-xs 11</span><br><span style="font-size:11px">labels, badges, table heads</span></div>
+  </div>
+</section>
+
+{{/* ============================== PANELS ================================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">panel + .ph + count chip <span class="chip">12</span></h2>
+  <p class="sg-note">When to use: the primary content container. Every section sits in a <code>.panel</code>; its heading is <code>.ph</code>. Put an optional <code>&lt;span class="chip"&gt;</code> in the <code>.ph</code> for counts.</p>
+  <section class="panel">
+    <h3 class="ph">nested panel <span class="chip">3 new</span></h3>
+    <p>Panel body. Headings carry the gradient underscore automatically.</p>
+  </section>
+</section>
+
+{{/* ============================== GRID =================================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">.cols grid</h2>
+  <p class="sg-note">When to use: side-by-side panels (home). <code>.cols</code> = 2-up, <code>.cols.c3</code> = 3-up, <code>.cols.sidebar</code> = narrow+wide (files). Collapses to one column under 700px.</p>
+  <div class="cols">
+    <section class="panel"><h3 class="ph">left</h3><p class="empty">column A</p></section>
+    <section class="panel"><h3 class="ph">right</h3><p class="empty">column B</p></section>
+  </div>
+</section>
+
+{{/* ============================== STATS ================================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">stat tiles -- .stats / .stat + c-stat</h2>
+  <p class="sg-note">When to use: a row of headline numbers (dashboard). Wrap <code>c-stat</code> calls in <code>.stats</code>. <code>dict</code> keys: <b>val</b>, <b>label</b>, optional <b>grad</b>.</p>
+  <div class="stats">
+    {{template "c-stat" (dict "val" "1,204" "label" "users" "grad" true)}}
+    {{template "c-stat" (dict "val" "38,902" "label" "messages")}}
+    {{template "c-stat" (dict "val" "5,610" "label" "files")}}
+    {{template "c-stat" (dict "val" "12" "label" "online")}}
+  </div>
+</section>
+
+{{/* ============================== BUTTONS ================================ */}}
+<section class="panel sg-section">
+  <h2 class="ph">buttons</h2>
+  <p class="sg-note">When to use: <code>.btn-primary</code> for the one main action; <code>.btn</code> default outline; <code>.btn-ghost</code> tertiary; add <code>.btn-sm</code> for inline/compact (e.g. file download).</p>
+  <div class="sg-row">
+    <a class="btn btn-primary" href="#">transmit</a>
+    <a class="btn" href="#">browse</a>
+    <a class="btn btn-ghost" href="#">cancel</a>
+    <a class="btn btn-sm" href="#">dl</a>
+    <button class="btn btn-primary btn-sm" type="button">tag</button>
+  </div>
+</section>
+
+{{/* ============================== FORMS ================================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">forms -- .field / inputs / .onelineform</h2>
+  <p class="sg-note">When to use: <code>.field</code> wraps a label+input. Inputs/textareas style automatically. <code>.onelineform</code> is the inline single-row form (the wall). <code>.postform</code> is the board reply box.</p>
+  <div class="field">
+    <label for="sg-h">handle</label>
+    <input id="sg-h" type="text" placeholder="your handle" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="sg-b">body</label>
+    <textarea id="sg-b" rows="3" placeholder="say something..."></textarea>
+  </div>
+  <form class="onelineform" onsubmit="return false">
+    <input type="text" name="author" placeholder="handle" autocomplete="off">
+    <input type="text" name="text" placeholder="leave your mark..." autocomplete="off">
+    <button class="btn btn-primary" type="submit">tag</button>
+  </form>
+</section>
+
+{{/* ============================== TABLES ================================= */}}
+<section class="panel sg-section">
+  <h2 class="ph">.table</h2>
+  <p class="sg-note">When to use: user/file listings. Zebra rows + hover come free. Add <code>.num</code> to right-align numeric cells.</p>
+  <table class="table">
+    <thead><tr><th>handle</th><th>group</th><th class="num">posts</th><th class="num">calls</th></tr></thead>
+    <tbody>
+      <tr><td>phiber</td><td>SYSOP</td><td class="num">1,204</td><td class="num">980</td></tr>
+      <tr><td>acid</td><td>STAFF</td><td class="num">622</td><td class="num">410</td></tr>
+      <tr><td>razor</td><td>USER</td><td class="num">88</td><td class="num">57</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{{/* ============================== MSGLIST ================================ */}}
+<section class="panel sg-section">
+  <h2 class="ph">.msglist</h2>
+  <p class="sg-note">When to use: a compact list of message subjects + meta (home "recent", board index). Subject is <code>.msubject</code>, meta is <code>.mmeta</code>.</p>
+  <ul class="msglist">
+    <li><a class="msubject" href="#">welcome to the station</a><span class="mmeta">by <b>phiber</b> &middot; 2026-06-21 18:04</span></li>
+    <li><a class="msubject" href="#">re: that 0day from last week</a><span class="mmeta">by <b>acid</b> &middot; 2026-06-20 09:11</span></li>
+  </ul>
+</section>
+
+{{/* ============================== MSG CARD =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">.msg -- full message card</h2>
+  <p class="sg-note">When to use: a single post in a board thread. Avatar via <code>c-avatar</code>, body via the <code>nlbr</code> func (escapes + newlines). Wrap several in <code>.thread</code>.</p>
+  <div class="thread">
+    <article class="msg">
+      <header class="msg-head">
+        <span class="who">{{template "c-avatar" (dict "handle" "phiber")}} <span class="msg-subj">welcome to the station</span></span>
+        <span class="msg-meta">from <b>phiber</b> &middot; 2026-06-21 18:04</span>
+      </header>
+      <div class="msg-body">{{nlbr "Cut the modem hiss, keep the attitude.\nSecond line proves nlbr works."}}</div>
+    </article>
+  </div>
+</section>
+
+{{/* ============================== BOARD CARD ============================= */}}
+<section class="panel sg-section">
+  <h2 class="ph">.board-card</h2>
+  <p class="sg-note">When to use: the boards index. <code>.bc-name</code> + <code>.bc-badges</code> (ACS/counts) on the top row, <code>.bc-desc</code> then <code>.bc-meta</code> below.</p>
+  <a class="board-card" href="#">
+    <div class="bc-top">
+      <span class="bc-name">[GEN] general</span>
+      <span class="bc-badges">
+        {{template "c-badge" (dict "label" "s10" "variant" "cyan")}}
+        {{template "c-badge" (dict "label" "412 msgs" "variant" "dim")}}
+      </span>
+    </div>
+    <div class="bc-desc">Open chatter, scene news, hellos and goodbyes.</div>
+    <div class="bc-meta">last post 3h ago by acid</div>
+  </a>
+</section>
+
+{{/* ============================== THE WALL =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">.wall</h2>
+  <p class="sg-note">When to use: the oneliner wall (home). <code>.wtext</code> is the line, <code>.wauth</code> the author.</p>
+  <ul class="wall">
+    <li><span class="wtext">greets to everyone still dialing in</span> <span class="wauth">&mdash; razor</span></li>
+    <li><span class="wtext">the scene never died, it just got an IP</span> <span class="wauth">&mdash; acid</span></li>
+  </ul>
+</section>
+
+{{/* ============================== AVATARS =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">c-avatar</h2>
+  <p class="sg-note">When to use: anywhere a handle appears. Initials on a stable per-handle hue. <code>dict</code> keys: <b>handle</b>, optional <b>size</b> ("sm"|"lg").</p>
+  <div class="sg-row">
+    {{template "c-avatar" (dict "handle" "phiber" "size" "lg")}}
+    {{template "c-avatar" (dict "handle" "acid")}}
+    {{template "c-avatar" (dict "handle" "razor" "size" "sm")}}
+    {{template "c-avatar" (dict "handle" "mindcrime")}}
+  </div>
+</section>
+
+{{/* ============================== BADGES =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">c-badge</h2>
+  <p class="sg-note">When to use: SL levels, groups, ACS strings, file sizes, "NEW". <code>dict</code> keys: <b>label</b>, optional <b>variant</b> (cyan/red/magenta/green/amber/dim/solid/default).</p>
+  <div class="sg-row">
+    {{template "c-badge" (dict "label" "default")}}
+    {{template "c-badge" (dict "label" "s100" "variant" "cyan")}}
+    {{template "c-badge" (dict "label" "SYSOP" "variant" "red")}}
+    {{template "c-badge" (dict "label" "STAFF" "variant" "magenta")}}
+    {{template "c-badge" (dict "label" "online" "variant" "green")}}
+    {{template "c-badge" (dict "label" "NEW" "variant" "amber")}}
+    {{template "c-badge" (dict "label" "1.2M" "variant" "dim")}}
+    {{template "c-badge" (dict "label" "elite" "variant" "solid")}}
+  </div>
+</section>
+
+{{/* ============================== BARS =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">c-bar -- ratio / progress</h2>
+  <p class="sg-note">When to use: up/down ratios, quota meters, leaderboard fills. <code>dict</code> keys: <b>n</b>, <b>max</b>, optional <b>thin</b>. Uses the <code>pct</code> func internally.</p>
+  <div style="max-width:320px">
+    {{template "c-bar" (dict "n" 72 "max" 100)}}
+    <div style="height:8px"></div>
+    {{template "c-bar" (dict "n" 18 "max" 100 "thin" true)}}
+  </div>
+</section>
+
+{{/* ============================== LEADERBOARD ========================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">c-lbrow -- leaderboard row</h2>
+  <p class="sg-note">When to use: top-N rankings (users page). Ranks 1/2/3 get accent colors. <code>dict</code> keys: <b>rank</b>, <b>handle</b>, <b>val</b>, optional <b>n</b>+<b>max</b> for the bar.</p>
+  {{template "c-lbrow" (dict "rank" 1 "handle" "phiber"    "val" "1.2M" "n" 1200 "max" 1200)}}
+  {{template "c-lbrow" (dict "rank" 2 "handle" "acid"      "val" "880K" "n" 880  "max" 1200)}}
+  {{template "c-lbrow" (dict "rank" 3 "handle" "razor"     "val" "640K" "n" 640  "max" 1200)}}
+  {{template "c-lbrow" (dict "rank" 4 "handle" "mindcrime" "val" "210K" "n" 210  "max" 1200)}}
+</section>
+
+{{/* ============================== PROFILE HEAD ========================= */}}
+<section class="panel sg-section">
+  <h2 class="ph">.profile-head</h2>
+  <p class="sg-note">When to use: top of a user profile. Large <code>c-avatar</code> (lg), handle, tagline, and a right-aligned stat row.</p>
+  <div class="profile-head">
+    {{template "c-avatar" (dict "handle" "phiber" "size" "lg")}}
+    <div class="ph-id">
+      <span class="ph-handle">phiber</span>
+      <span class="ph-tag">SYSOP &middot; the original</span>
+    </div>
+    <div class="ph-stats">
+      <div class="ph-stat"><span class="v">1,204</span><span class="k">posts</span></div>
+      <div class="ph-stat"><span class="v">980</span><span class="k">calls</span></div>
+      <div class="ph-stat"><span class="v">12</span><span class="k">uploads</span></div>
+    </div>
+  </div>
+</section>
+
+{{/* ============================== FILE ROW ============================ */}}
+<section class="panel sg-section">
+  <h2 class="ph">.file-row</h2>
+  <p class="sg-note">When to use: a file in an area. Name + desc + meta on the left, size <code>c-badge</code> in <code>.fr-badges</code>, a <code>.btn-sm</code> download on the right.</p>
+  <div class="file-row">
+    <div class="fr-main">
+      <div class="fr-name">acidview.zip</div>
+      <div class="fr-desc">ACiD viewer 6.10 -- the canonical ANSI/ASCII renderer.</div>
+      <div class="fr-meta">uploaded by acid &middot; 412 downloads</div>
+    </div>
+    <span class="fr-badges">
+      {{template "c-badge" (dict "label" "1.2M" "variant" "dim")}}
+      {{template "c-badge" (dict "label" "NEW" "variant" "amber")}}
+    </span>
+    <span class="fr-dl"><a class="btn btn-sm" href="#">dl</a></span>
+  </div>
+</section>
+
+{{/* ============================== TABS =============================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">.tabs / .tab</h2>
+  <p class="sg-note">When to use: switching file areas / views. Mark the active one with <code>.on</code>.</p>
+  <div class="tabs">
+    <a class="tab on" href="#">ansi</a>
+    <a class="tab" href="#">ascii</a>
+    <a class="tab" href="#">utils</a>
+    <a class="tab" href="#">demos</a>
+  </div>
+</section>
+
+{{/* ============================== CRUMB / EMPTY ====================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">.crumb + .empty</h2>
+  <p class="sg-note">When to use: <code>.crumb</code> for breadcrumb/back links; <code>.empty</code> for empty/quiet states (italic, muted).</p>
+  <div class="crumb"><a href="#">boards</a> <span class="sep">/</span> general</div>
+  <p class="empty">No messages on this board yet. <a href="#">Post the first one.</a></p>
+</section>
+
+{{/* ============================== CODE / KBD ======================== */}}
+<section class="panel sg-section">
+  <h2 class="ph">inline code &amp; kbd</h2>
+  <p class="sg-note">When to use: commands and keys. Run <code>telnet vendetta.x</code> or press <kbd>Ctrl</kbd>+<kbd>C</kbd> to drop carrier.</p>
+</section>
+
+{{end}}

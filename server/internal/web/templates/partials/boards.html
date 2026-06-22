@@ -1,0 +1,36 @@
+{{/* =============================================================================
+   VENDETTA/X -- message-boards feature partials
+   -----------------------------------------------------------------------------
+   Namespaced with the "boards-" prefix so they never collide with the shared
+   "c-" components or other features. These compose the established design
+   system (see /styleguide): .board-card, c-badge, since/plural funcs.
+   ========================================================================== */}}
+
+{{/* -----------------------------------------------------------------------------
+   boards-card -- one row on the board index.
+   data: a boardCard {Board store.Board; Count int; Last store.Message; HasLast bool}
+   Layout per styleguide .board-card: .bc-top (name + .bc-badges), .bc-desc,
+   .bc-meta. The access badge is a red lock-style chip when ReadACS gates the
+   board, or a dim "open" chip otherwise.
+   --------------------------------------------------------------------------- */}}
+{{define "boards-card"}}
+<a class="board-card" href="/boards/{{.Board.ID}}">
+  <div class="bc-top">
+    <span class="bc-name">[{{.Board.Tag}}] {{.Board.Name}}</span>
+    <span class="bc-badges">
+      {{if .Board.ReadACS}}
+        {{template "c-badge" (dict "label" .Board.ReadACS "variant" "red")}}
+      {{else}}
+        {{template "c-badge" (dict "label" "open" "variant" "dim")}}
+      {{end}}
+      {{template "c-badge" (dict "label" (printf "%d %s" .Count (plural .Count "msg" "msgs")) "variant" "dim")}}
+    </span>
+  </div>
+  {{if .Board.Desc}}<div class="bc-desc">{{.Board.Desc}}</div>{{end}}
+  {{if .HasLast}}
+    <div class="bc-meta">last post {{since .Last.Posted}} by {{.Last.From}}</div>
+  {{else}}
+    <div class="bc-meta">no posts yet</div>
+  {{end}}
+</a>
+{{- end}}

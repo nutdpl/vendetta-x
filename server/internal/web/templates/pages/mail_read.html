@@ -1,0 +1,33 @@
+{{define "mail_read"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/mail">mail</a> <span class="sep">/</span> {{if .Msg.Subject}}{{.Msg.Subject}}{{else}}(no subject){{end}}</div>
+
+<section class="panel">
+  <div class="thread">
+    <article class="msg">
+      <header class="msg-head">
+        <span class="who">
+          {{template "c-avatar" (dict "handle" .Msg.From)}}
+          <span class="msg-subj">{{if .Msg.Subject}}{{.Msg.Subject}}{{else}}(no subject){{end}}</span>
+        </span>
+        <span class="msg-meta">
+          from <a href="/users/{{.Msg.From}}"><b>{{.Msg.From}}</b></a>
+          to <a href="/users/{{.Msg.To}}"><b>{{.Msg.To}}</b></a>
+          &middot; {{fdate .Msg.Sent}} &middot; {{since .Msg.Sent}}
+        </span>
+      </header>
+      <div class="msg-body">{{nlbr .Msg.Body}}</div>
+    </article>
+  </div>
+
+  <div class="sg-row">
+    {{if .IsInbox}}
+      <a class="btn btn-primary" href="/mail/compose?to={{.ReplyTo}}&amp;re={{.Msg.Subject}}">reply</a>
+    {{end}}
+    <form method="post" action="/mail/{{.Msg.ID}}/delete" style="display:inline">
+      <button class="btn btn-ghost" type="submit">delete</button>
+    </form>
+    <a class="btn" href="/mail">back to inbox</a>
+  </div>
+</section>
+{{end}}

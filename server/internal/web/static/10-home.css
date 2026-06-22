@@ -1,0 +1,24 @@
+/* =============================================================================
+   VENDETTA/X -- home/dashboard feature sheet  (10-home.css)
+   -----------------------------------------------------------------------------
+   Layered on top of 00-base.css. Home-specific tweaks ONLY, all expressed in
+   the existing design tokens. Prefer composing base classes; this file just
+   adds the small "userrow" line used by the newest-users / last-callers panels,
+   modeled on the existing .lbrow layout.
+   ========================================================================== */
+
+.home-userrow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px dotted var(--line-soft);
+}
+.home-userrow:last-child { border-bottom: none; }
+.home-userrow .who { color: var(--cyan); font-weight: 700; }
+.home-userrow .when {
+  color: var(--ink-faint);
+  font-size: var(--fz-sm);
+  font-variant-numeric: tabular-nums;
+}

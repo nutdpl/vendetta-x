@@ -1,0 +1,45 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "users")}}
+
+<section class="panel">
+  <h2 class="ph">users <span class="chip">{{len .Users}}</span></h2>
+  {{if .Users}}
+    <table class="table sysop-users">
+      <thead>
+        <tr><th>handle</th><th>group</th><th class="num">posts</th><th class="num">calls</th><th>last call</th><th>security</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Users}}
+          <tr>
+            <td>
+              <a class="userlink" href="/users/{{.Handle}}">
+                {{template "c-avatar" (dict "handle" .Handle "size" "sm")}}<span>{{.Handle}}</span>
+              </a>
+            </td>
+            <td>{{template "c-badge" (dict "label" .Group "variant" "dim")}}</td>
+            <td class="num">{{.Posts}}</td>
+            <td class="num">{{.Calls}}</td>
+            <td>{{since .LastCall}}</td>
+            <td>
+              <form class="levelform" method="post" action="/sysop/users/{{.ID}}/level">
+                <label>SL <input type="number" name="sl" min="0" max="255" value="{{.SL}}"></label>
+                <label>DSL <input type="number" name="dsl" min="0" max="255" value="{{.DSL}}"></label>
+                <button class="btn btn-sm" type="submit">set</button>
+              </form>
+            </td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/users/{{.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/users/{{.ID}}/delete" onsubmit="return confirm('Delete user &quot;{{.Handle}}&quot;?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <p class="sg-note">SL &ge; 100 grants sysop access. Changes take effect on the user's next request.</p>
+  {{else}}
+    <p class="empty">No users yet.</p>
+  {{end}}
+</section>
+{{end}}

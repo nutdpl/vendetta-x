@@ -1,0 +1,24 @@
+{{define "gfile_read"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<div class="crumb"><a href="/gfiles">g-files</a> <span class="sep">/</span> {{.Doc.Title}}</div>
+
+<section class="panel">
+  <article class="msg">
+    <header class="msg-head">
+      <span class="who">
+        <span class="msg-subj">{{.Doc.Title}}</span>
+      </span>
+      <span class="msg-meta">
+        {{template "c-badge" (dict "label" .Doc.Category "variant" "dim")}}
+        {{with .Doc.Author}}&middot; by <b>{{.}}</b>{{end}}
+        &middot; {{fdate .Doc.Added}} &middot; {{since .Doc.Added}}
+      </span>
+    </header>
+    <div class="msg-body">{{nlbr .Doc.Body}}</div>
+  </article>
+
+  <div class="sg-row">
+    <a class="btn" href="/gfiles">back to library</a>
+  </div>
+</section>
+{{end}}
