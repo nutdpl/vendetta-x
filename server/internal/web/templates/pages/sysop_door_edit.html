@@ -3,6 +3,10 @@
 
 <section class="panel">
   <h2 class="ph">{{if .Editing}}edit door{{else}}new door{{end}}</h2>
+  <p class="sg-note">DOS doors run best under <strong>dosemu2</strong> in dumb-terminal
+    mode; native Linux doors run directly. See <code>docs/DOORS.md</code> for working
+    recipes. The command is split on spaces (no shell) &mdash; wrap anything fancy in a
+    launcher script.</p>
   <form method="post" action="/sysop/doors" class="authform" autocomplete="off">
     {{if .Editing}}<input type="hidden" name="id" value="{{.Door.ID}}">{{end}}
     <div class="field">
@@ -16,7 +20,7 @@
     <div class="field">
       <label for="d-cmd">command <span class="sg-note">(shell-free argv, space-separated)</span></label>
       <input id="d-cmd" type="text" name="command" maxlength="255" value="{{.Door.Command}}"
-        placeholder="dosbox -conf /opt/lord/dosbox.conf -exit">
+        placeholder="dosemu2 -dumb -K /opt/doors/lord -E START.BAT">
     </div>
     <div class="field">
       <label for="d-wd">work dir <span class="sg-note">(drop file is written here)</span></label>

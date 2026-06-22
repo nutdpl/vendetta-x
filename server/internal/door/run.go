@@ -16,11 +16,21 @@ var ErrNotConfigured = errors.New("door: not configured")
 // not an existing file), so the door can't run on this host.
 var ErrUnavailable = errors.New("door: binary unavailable")
 
+// errNoPTY is an internal sentinel: no pseudo-terminal could be allocated, so
+// Run falls back to the plain-pipe bridge.
+var errNoPTY = errors.New("door: no pty")
+
 // Run launches the door and bridges the caller's terminal (rw) to the door
-// process's stdin/stdout/stderr. It writes the drop file first, then execs the
-// configured command with cmd.Dir set to the work dir. The bridge ends when the
-// process exits or rw returns EOF; both copy goroutines are torn down on exit.
-// A misconfigured or absent door returns a sentinel error, never a panic/hang.
+// process. It writes the drop file first, then execs the configured command
+// with cmd.Dir set to the work dir.
+//
+// The door is given a real pseudo-terminal where possible (so it sees a tty --
+// raw keys, isatty true, the controlling terminal a DOS-door emulator such as
+// dosemu2 expects); on platforms without a pty, or if allocation fails, it falls
+// back to bridging the process's stdin/stdout pipes (fine for line-oriented
+// native doors). The bridge ends when the process exits or rw returns EOF; the
+// copy goroutines are torn down on exit. A misconfigured or absent door returns
+// a sentinel error, never a panic/hang. See docs/DOORS.md for emulator recipes.
 func (d Door) Run(c Caller, sys System, rw io.ReadWriteCloser) error {
 	if strings.TrimSpace(d.Command) == "" {
 		return ErrNotConfigured
@@ -49,6 +59,17 @@ func (d Door) Run(c Caller, sys System, rw io.ReadWriteCloser) error {
 		cmd.Dir = "."
 	}
 
+	// Prefer a real terminal; runPTY returns errNoPTY (without starting cmd) when
+	// no pty is available, so the same cmd can fall through to the pipe bridge.
+	if err := runPTY(cmd, rw); err != errNoPTY {
+		return err
+	}
+	return runPipes(cmd, rw)
+}
+
+// runPipes bridges the caller (rw) to cmd's stdin/stdout over plain pipes. cmd
+// must not have been started.
+func runPipes(cmd *exec.Cmd, rw io.ReadWriteCloser) error {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err

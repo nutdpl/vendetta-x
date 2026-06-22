@@ -54,8 +54,9 @@ Every main-menu command is wired and live:
 - **voting booth** — vote on polls and propose new ones;
 - **BBS list** — a directory of other boards, caller-addable;
 - **G-files** — the text-file library;
-- **doors** — external/DOSBox door games via standard drop files (DOOR.SYS /
-  DORINFO1.DEF) with a terminal I/O bridge, plus two built-in native games;
+- **doors** — external door games via standard drop files (DOOR.SYS /
+  DORINFO1.DEF) and a real-PTY I/O bridge (DOS doors via dosemu2, plus native
+  doors), with two built-in native games — see `docs/DOORS.md`;
 - **QWK offline mail** — download a real `.QWK` packet, upload a `.REP` reply;
 - **new-files** — the latest uploads across every readable area;
 - **oneliners / the wall** — leave your mark;
