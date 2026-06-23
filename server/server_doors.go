@@ -30,6 +30,7 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 		s.Print("  \x1b[1;33m 1  \x1b[1;37mGuess the Vault   \x1b[1;30m\xfa crack the 3-digit vault code\x1b[0m\r\n")
 		s.Print("  \x1b[1;33m 2  \x1b[1;37mDice Duel         \x1b[1;30m\xfa roll against the house\x1b[0m\r\n")
+		s.Print("  \x1b[1;33m 3  \x1b[1;31mRed Dragon        \x1b[1;30m\xfa LORD-style RPG -- slay the dragon\x1b[0m\r\n")
 		for i, d := range ext {
 			label := d.Name
 			if len(label) > 17 {
@@ -37,9 +38,9 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 			}
 			desc := d.Description
 			if desc != "" {
-				s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-17s \x1b[1;30m\xfa %s\x1b[0m\r\n", i+3, label, desc)
+				s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-17s \x1b[1;30m\xfa %s\x1b[0m\r\n", i+4, label, desc)
 			} else {
-				s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-17s\x1b[0m\r\n", i+3, label)
+				s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-17s\x1b[0m\r\n", i+4, label)
 			}
 		}
 		if len(ext) == 0 {
@@ -59,12 +60,14 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 			b.doorGuessVault(s, user)
 		case "2":
 			b.doorDiceDuel(s, user)
+		case "3":
+			b.redDragon(s, user)
 		default:
 			n, err := strconv.Atoi(line)
-			if err != nil || n < 3 || n-3 >= len(ext) {
+			if err != nil || n < 4 || n-4 >= len(ext) {
 				continue
 			}
-			b.doorRun(s, user, ext[n-3])
+			b.doorRun(s, user, ext[n-4])
 		}
 	}
 }
