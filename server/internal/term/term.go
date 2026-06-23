@@ -58,6 +58,20 @@ type Session struct {
 	idleOnce  sync.Once
 	done      chan struct{}
 	closeOnce sync.Once
+
+	// lastReadErr holds the error that caused the most recent KeyEOF, so a
+	// timed read (WaitKey) can tell a benign read deadline from a real EOF.
+	lastReadErr error
+
+	// pending is a one-key pushback: a key consumed while skipping an animation
+	// (see anim.go) is stashed here so the next ReadKey delivers it. That makes a
+	// hotkey hit mid-intro both skip the paint AND land on the menu.
+	pending *keyEvent
+}
+
+type keyEvent struct {
+	k  Kind
+	ch byte
 }
 
 // New builds a session over a telnet socket.
@@ -117,9 +131,16 @@ func (s *Session) Negotiate() {
 // ReadKey returns one decoded key, stripping telnet IAC and decoding arrows.
 func (s *Session) ReadKey() (Kind, byte) {
 	s.markActivity()
+	if s.pending != nil {
+		ev := *s.pending
+		s.pending = nil
+		return ev.k, ev.ch
+	}
+	s.lastReadErr = nil
 	for {
 		b, err := s.br.ReadByte()
 		if err != nil {
+			s.lastReadErr = err
 			return KeyEOF, 0
 		}
 		switch b {

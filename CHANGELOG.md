@@ -4,6 +4,23 @@ All notable changes to Vendetta/X are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- A cinematic **connect entrance**. Every caller (telnet and ssh) now lands on a
+  short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), after which
+  the login matrix **paints on line by line** instead of snapping into place --
+  the classic "board drawing over a modem" feel. Any keypress skips the whole
+  intro, and a hotkey hit mid-paint both skips _and_ selects its menu option, so
+  it never slows a regular down.
+- A live **status footer** on the login matrix: nodes online, total users, and
+  the board's local time, spliced in fresh on every connection.
+- New session-layer animation primitives in `internal/term` -- `Sleep`,
+  `WaitKey` (an interruptible timed wait that tells a read deadline from a real
+  hangup), and `Reveal` (a marker-preserving, skippable line-by-line screen
+  paint) -- with tests covering pacing, skip, and key pushback.
+
 ## [0.9.0] - 2026-06-22
 
 The first feature-complete pre-release of the Vendetta/X Go server: three faces

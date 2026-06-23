@@ -42,6 +42,7 @@ import (
 	"vendetta-x/server/internal/editor"
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/mail"
+	"vendetta-x/server/internal/render"
 	"vendetta-x/server/internal/social"
 	"vendetta-x/server/internal/sshface"
 	"vendetta-x/server/internal/store"
@@ -403,7 +404,9 @@ func (b *board) runBoard(s *term.Session) {
 		"VR": version,
 		"UH": "guest",
 	}
+	b.loginTokens(tok)
 
+	b.connect(s)
 	user := b.matrix(s, tok)
 	if user == nil {
 		s.Print("\x1b[0m\r\n  NO CARRIER\r\n")
@@ -434,11 +437,35 @@ func subjectOf(u *store.User) acs.Subject {
 	}
 }
 
+// loginTokens splices the live "front porch" stats the matrix art shows --
+// nodes online, total users, and the board's local time -- into tok. Cheap
+// enough to recompute per connection; it makes the login screen feel alive
+// instead of like a static image.
+func (b *board) loginTokens(tok map[string]string) {
+	tok["CN"] = strconv.Itoa(len(b.pres.list()))
+	if users, err := b.st.Users(); err == nil {
+		tok["UC"] = strconv.Itoa(len(users))
+	} else {
+		tok["UC"] = "?"
+	}
+	tok["TI"] = time.Now().Format("15:04")
+}
+
 // matrix runs the login screen: Login / New User / Goodbye. Returns the logged
-// in user, or nil if the caller bailed / lost carrier.
+// in user, or nil if the caller bailed / lost carrier. The first paint animates
+// in line by line for the connect entrance; redraws after a failed login are
+// instant so a fumbled password doesn't replay the whole show.
 func (b *board) matrix(s *term.Session, tok map[string]string) *store.User {
+	first := true
 	for {
-		opts := s.RenderScreen(b.art+"/matrix.pp", tok)
+		b.loginTokens(tok)
+		var opts []render.Marker
+		if first {
+			opts, _ = s.Reveal(b.art+"/matrix.pp", tok, 28*time.Millisecond)
+			first = false
+		} else {
+			opts = s.RenderScreen(b.art+"/matrix.pp", tok)
+		}
 		key, ok := s.Lightbar(opts, 0)
 		if !ok {
 			return nil
