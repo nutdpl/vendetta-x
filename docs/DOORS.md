@@ -1,7 +1,7 @@
 # Running doors on Vendetta/X
 
-A *door* is an external program a caller drops into from the board — a game
-(LORD, TradeWars), a util, anything. Vendetta/X runs doors by:
+A *door* is an external program a caller drops into from the board — a classic
+DOS game, a util, anything. Vendetta/X runs doors by:
 
 1. writing a standard **drop file** (`DOOR.SYS` or `DORINFO1.DEF`) into the
    door's working directory, describing the caller (handle, security level, time
@@ -17,10 +17,10 @@ You configure doors in the web sysop panel at **`/sysop/doors`**:
 | Command    | the program to run, as plain `argv` split on spaces (no shell, no quotes — one path, simple flags) |
 | Work dir   | the directory the drop file is written into and the process runs in     |
 | Drop type  | `DOOR.SYS` (Synchronet-style, ~52 lines) or `DORINFO1.DEF` (Fido-style) |
-| DOS path   | DOOR.SYS fields 33/34, the door's DOS-side path (e.g. `C:\LORD`); blank if unsure |
+| DOS path   | DOOR.SYS fields 33/34, the door's DOS-side path (e.g. `C:\GAME`); blank if unsure |
 
 > **The Command is split on whitespace, not by a shell.** `dosemu2 -dumb -K
-> /opt/lord -E LORD.BAT` is fine; `sh -c '... | ...'` is not. Wrap anything that
+> /opt/doors/game -E START.BAT` is fine; `sh -c '... | ...'` is not. Wrap anything that
 > needs a shell, pipes, or quoting in a small launcher script and point Command
 > at the script.
 
@@ -44,14 +44,14 @@ of emulator matters:
 emulator and the path most Linux boards use for DOS doors.
 
 1. Install it (`apt install dosemu2`, or build from source).
-2. Put the door's files in a directory, e.g. `/opt/doors/lord`.
+2. Put the door's files in a directory, e.g. `/opt/doors/game`.
 3. Configure a door with, for example:
 
    ```
-   Command:   dosemu2 -dumb -K /opt/doors/lord -E "START.BAT"
-   Work dir:  /opt/doors/lord
+   Command:   dosemu2 -dumb -K /opt/doors/game -E "START.BAT"
+   Work dir:  /opt/doors/game
    Drop type: DOOR.SYS
-   DOS path:  C:\LORD
+   DOS path:  C:\GAME
    ```
 
    - `-dumb` runs dosemu2 as a terminal application (no window), rendering the

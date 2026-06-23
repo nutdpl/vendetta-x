@@ -214,9 +214,14 @@ func TestNewUserSignupAndQuit(t *testing.T) {
 	se.expect("Location:")
 	se.send("Somewhere\r")
 
-	// Account created -> Pause() waits for a key, then we land at the main menu.
+	// Account created -> Pause() waits for a key, then we hit the logon sequence.
 	se.expect("Account created")
 	se.send(" ") // dismiss the "press any key" pause
+
+	// The logon sequence offers a "quick logon" -- answer yes to skip the tour
+	// (who's online / sysinfo / bulletins / wall) and land at the main menu.
+	se.expect("Quick logon?")
+	se.send("y")
 
 	// At the main menu, Goodbye (hotkey 'g').
 	se.expect("main menu")
@@ -263,6 +268,11 @@ func TestLoginPasswordlessUserAndUserList(t *testing.T) {
 	se.expect("Verify:")
 	se.send("ghost9\r")
 	se.expect("Welcome, phantom!")
+
+	// The logon sequence offers a "quick logon" -- answer yes to skip the tour
+	// and land at the main menu.
+	se.expect("Quick logon?")
+	se.send("y")
 
 	// Main menu -> User List (hotkey 'u').
 	se.expect("main menu")

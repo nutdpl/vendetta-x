@@ -33,10 +33,10 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	id, err := s.Add(&Door{
-		Name:        "Legend of the Red Dragon",
-		Description: "Classic LORD",
-		Command:     "dosbox -conf /opt/lord/dosbox.conf -exit",
-		WorkDir:     "/opt/lord",
+		Name:        "Dungeon Crawl",
+		Description: "Classic dungeon RPG",
+		Command:     "dosbox -conf /opt/doors/dungeon/dosbox.conf -exit",
+		WorkDir:     "/opt/doors/dungeon",
 		DropType:    "DOOR.SYS",
 		Enabled:     true,
 	})
@@ -45,7 +45,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// A second, disabled door (sorts before the first by name).
-	id2, err := s.Add(&Door{Name: "Barren Realms", Command: "brez", Enabled: false})
+	id2, err := s.Add(&Door{Name: "Astro Traders", Command: "astro", Enabled: false})
 	if err != nil {
 		t.Fatalf("Add 2: %v", err)
 	}
@@ -57,8 +57,8 @@ func TestStoreRoundTrip(t *testing.T) {
 	if len(all) != 2 {
 		t.Fatalf("List len = %d, want 2", len(all))
 	}
-	// Ordered by name COLLATE NOCASE: "Barren Realms" before "Legend...".
-	if all[0].Name != "Barren Realms" || all[1].Name != "Legend of the Red Dragon" {
+	// Ordered by name COLLATE NOCASE: "Astro Traders" before "Dungeon Crawl".
+	if all[0].Name != "Astro Traders" || all[1].Name != "Dungeon Crawl" {
 		t.Fatalf("List order wrong: %q, %q", all[0].Name, all[1].Name)
 	}
 
@@ -74,7 +74,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil || got == nil {
 		t.Fatalf("Get: %v %v", err, got)
 	}
-	if got.Name != "Legend of the Red Dragon" || got.WorkDir != "/opt/lord" ||
+	if got.Name != "Dungeon Crawl" || got.WorkDir != "/opt/doors/dungeon" ||
 		got.DropType != "DOOR.SYS" || !got.Enabled {
 		t.Fatalf("Get mismatch: %+v", got)
 	}
@@ -84,13 +84,13 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatalf("Get missing = %v,%v want nil,nil", g, err)
 	}
 
-	got.Name = "LORD"
+	got.Name = "Dungeon Keep"
 	got.Enabled = false
 	if err := s.Update(got); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	re, _ := s.Get(id)
-	if re.Name != "LORD" || re.Enabled {
+	if re.Name != "Dungeon Keep" || re.Enabled {
 		t.Fatalf("Update not applied: %+v", re)
 	}
 	if en, _ := s.Enabled(); len(en) != 0 {
@@ -110,7 +110,7 @@ func TestStoreRoundTrip(t *testing.T) {
 
 func TestWriteDropFileDoorSys(t *testing.T) {
 	dir := t.TempDir()
-	d := Door{Name: "LORD", WorkDir: dir, DropType: "DOOR.SYS", DOSPath: "C:\\LORD"}
+	d := Door{Name: "Dungeon Keep", WorkDir: dir, DropType: "DOOR.SYS", DOSPath: "C:\\DUNGEON"}
 	c := Caller{Node: 1, Handle: "Acidburn", RealName: "Kate Libby", SL: 100, MinutesLeft: 45, Emulation: 1, Baud: 38400}
 
 	path, err := d.WriteDropFile(c, System{Name: "Vendetta/X", Sysop: "nut"})
@@ -139,7 +139,7 @@ func TestWriteDropFileDoorSys(t *testing.T) {
 	if strings.Contains(text, "C:\\BBS\\GEN") {
 		t.Fatalf("DOOR.SYS still has the hardcoded path:\n%s", text)
 	}
-	if !strings.Contains(text, "C:\\LORD") {
+	if !strings.Contains(text, "C:\\DUNGEON") {
 		t.Fatalf("DOOR.SYS missing configured DOS path:\n%s", text)
 	}
 	if !strings.Contains(text, "nut") {

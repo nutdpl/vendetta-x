@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 // shop.go holds the two town merchants: King Arthur's Weapons and Abdul's
 // Armour. Both are the same buy/sell/list loop over a tier table, so they share

@@ -1,7 +1,7 @@
 {{/* sysop-nav -- the sub-navigation shared by the sysop panel pages.
      keys: active (string) one of
-       "dash" | "users" | "config" | "areas" | "gfiles" |
-       "bbslist" | "voting" | "oneliners" | "settings" */}}
+       "dash" | "users" | "config" | "areas" | "gfiles" | "bulletins" |
+       "bbslist" | "voting" | "doors" | "oneliners" | "settings" */}}
 {{define "sysop-nav"}}
 <nav class="sysnav" aria-label="sysop">
   <a href="/sysop"           class="{{if eq .active "dash"}}on{{end}}">dashboard</a>
@@ -9,6 +9,7 @@
   <a href="/sysop/boards"    class="{{if eq .active "config"}}on{{end}}">message bases</a>
   <a href="/sysop/areas"     class="{{if eq .active "areas"}}on{{end}}">file areas</a>
   <a href="/sysop/gfiles"    class="{{if eq .active "gfiles"}}on{{end}}">g-files</a>
+  <a href="/sysop/bulletins" class="{{if eq .active "bulletins"}}on{{end}}">bulletins</a>
   <a href="/sysop/bbslist"   class="{{if eq .active "bbslist"}}on{{end}}">bbs list</a>
   <a href="/sysop/voting"    class="{{if eq .active "voting"}}on{{end}}">voting</a>
   <a href="/sysop/doors"     class="{{if eq .active "doors"}}on{{end}}">doors</a>

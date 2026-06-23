@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 // This file holds the player-vs-player corner of Red Dragon: the "Warriors of
 // the Realm" leaderboard and the duel where you hunt down another stored

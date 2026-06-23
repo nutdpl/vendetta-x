@@ -20,12 +20,12 @@
     <div class="field">
       <label for="d-cmd">command <span class="sg-note">(shell-free argv, space-separated)</span></label>
       <input id="d-cmd" type="text" name="command" maxlength="255" value="{{.Door.Command}}"
-        placeholder="dosemu2 -dumb -K /opt/doors/lord -E START.BAT">
+        placeholder="dosemu2 -dumb -K /opt/doors/game -E START.BAT">
     </div>
     <div class="field">
       <label for="d-wd">work dir <span class="sg-note">(drop file is written here)</span></label>
       <input id="d-wd" type="text" name="workdir" maxlength="255" value="{{.Door.WorkDir}}"
-        placeholder="/opt/lord">
+        placeholder="/opt/doors/game">
     </div>
     <div class="field">
       <label for="d-dt">drop type</label>
@@ -35,9 +35,9 @@
       </select>
     </div>
     <div class="field">
-      <label for="d-dp">DOS path <span class="sg-note">(DOOR.SYS only; the door's DOS-side dir, e.g. C:\LORD &mdash; leave blank if unsure)</span></label>
+      <label for="d-dp">DOS path <span class="sg-note">(DOOR.SYS only; the door's DOS-side dir, e.g. C:\DOOR &mdash; leave blank if unsure)</span></label>
       <input id="d-dp" type="text" name="dos_path" maxlength="64" value="{{.Door.DOSPath}}"
-        placeholder="C:\LORD">
+        placeholder="C:\DOOR">
     </div>
     <div class="field">
       <label><input type="checkbox" name="enabled" value="1" {{if .Door.Enabled}}checked{{end}}> enabled</label>

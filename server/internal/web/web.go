@@ -34,6 +34,7 @@ import (
 
 	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/bbslist"
+	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/door"
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/mail"
@@ -82,6 +83,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.bbslist, _ = bbslist.New(st.DB())
 	s.gfiles, _ = gfiles.New(st.DB())
 	s.doorStore, _ = door.New(st.DB())
+	s.bulletins, _ = bulletin.New(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -176,6 +178,12 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/gfiles", s.admin(s.sysopGfileSave))
 	mux.HandleFunc("POST /sysop/gfiles/{id}/delete", s.admin(s.sysopGfileDelete))
 
+	mux.HandleFunc("GET /sysop/bulletins", s.admin(s.sysopBulletins))
+	mux.HandleFunc("GET /sysop/bulletins/new", s.admin(s.sysopBulletinForm))
+	mux.HandleFunc("GET /sysop/bulletins/{id}/edit", s.admin(s.sysopBulletinForm))
+	mux.HandleFunc("POST /sysop/bulletins", s.admin(s.sysopBulletinSave))
+	mux.HandleFunc("POST /sysop/bulletins/{id}/delete", s.admin(s.sysopBulletinDelete))
+
 	// bbs list (CRUD)
 	mux.HandleFunc("GET /sysop/bbslist", s.admin(s.sysopBbslist))
 	mux.HandleFunc("GET /sysop/bbslist/new", s.admin(s.sysopBbsForm))
@@ -222,6 +230,7 @@ type server struct {
 	bbslist   *bbslist.Store
 	gfiles    *gfiles.Store
 	doorStore *door.Store
+	bulletins *bulletin.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being

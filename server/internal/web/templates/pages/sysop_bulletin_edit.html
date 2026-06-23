@@ -1,0 +1,28 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "bulletins")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Bulletin}}edit bulletin{{else}}new bulletin{{end}}</h2>
+  <p class="sg-note">A title is required. The body is shown to callers verbatim.</p>
+
+  <form method="post" action="/sysop/bulletins" class="authform" autocomplete="off">
+    <input type="hidden" name="id" value="{{if .Bulletin}}{{.Bulletin.ID}}{{end}}">
+    <div class="field">
+      <label for="b-title">title</label>
+      <input id="b-title" type="text" name="title" maxlength="80" value="{{if .Bulletin}}{{.Bulletin.Title}}{{end}}" required>
+    </div>
+    <div class="field">
+      <label for="b-author">author</label>
+      <input id="b-author" type="text" name="author" maxlength="40" value="{{if .Bulletin}}{{.Bulletin.Author}}{{end}}">
+    </div>
+    <div class="field">
+      <label for="b-body">body</label>
+      <textarea id="b-body" name="body" rows="10">{{if .Bulletin}}{{.Bulletin.Body}}{{end}}</textarea>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Bulletin}}save changes{{else}}create bulletin{{end}}</button>
+      <a class="btn" href="/sysop/bulletins">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,34 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "bulletins")}}
+
+<section class="panel">
+  <h2 class="ph">bulletins <span class="chip">{{len .Bulletins}}</span>
+    <a class="btn btn-sm" href="/sysop/bulletins/new">+ new bulletin</a>
+  </h2>
+  {{if .Bulletins}}
+    <table class="table">
+      <thead>
+        <tr><th>title</th><th>author</th><th>posted</th><th class="rowacts">actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Bulletins}}
+          <tr>
+            <td>{{.Title}}</td>
+            <td>{{template "c-badge" (dict "label" .Author "variant" "dim")}}</td>
+            <td>{{since .Posted}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/bulletins/{{.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/bulletins/{{.ID}}/delete" onsubmit="return confirm('Delete this bulletin?')" style="display:inline">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No bulletins yet.</p>
+  {{end}}
+  <p class="sg-note">Bulletins are short sysop announcements shown to callers, most recent first.</p>
+</section>
+{{end}}

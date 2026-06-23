@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 // This file holds two town services: the Healer's Hut (restores hit points for
 // gold, scaled by level) and Ye Olde Bank (move gold between hand and the safe

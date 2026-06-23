@@ -16,11 +16,11 @@ type Door struct {
 	ID          int64
 	Name        string // menu label
 	Description string
-	Command     string // shell-free argv, space-separated; e.g. "dosbox -conf /opt/lord/dosbox.conf -exit"
+	Command     string // shell-free argv, space-separated; e.g. "dosbox -conf /opt/doors/game/dosbox.conf -exit"
 	WorkDir     string // dir the drop file is written into and the process runs in
 	DropType    string // "DOOR.SYS" or "DORINFO1.DEF"
 	// DOSPath is the DOS-side path the door expects for its own files, written
-	// into DOOR.SYS fields 33/34 (e.g. "C:\\LORD"). It is setup-specific, so it
+	// into DOOR.SYS fields 33/34 (e.g. "C:\\DOOR"). It is setup-specific, so it
 	// is left to the sysop; empty leaves those fields blank rather than guessing.
 	DOSPath string
 	Enabled bool

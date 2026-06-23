@@ -35,11 +35,12 @@ import (
 	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/auth"
 	"vendetta-x/server/internal/bbslist"
+	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/chat"
 	"vendetta-x/server/internal/door"
+	"vendetta-x/server/internal/dragon"
 	"vendetta-x/server/internal/editor"
 	"vendetta-x/server/internal/gfiles"
-	"vendetta-x/server/internal/lord"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/social"
 	"vendetta-x/server/internal/sshface"
@@ -105,13 +106,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("door: %v", err)
 	}
-	lordStore, err := lord.New(st.DB())
+	dragonStore, err := dragon.New(st.DB())
 	if err != nil {
-		log.Fatalf("lord: %v", err)
+		log.Fatalf("dragon: %v", err)
 	}
 	voidStore, err := void.New(st.DB())
 	if err != nil {
 		log.Fatalf("void: %v", err)
+	}
+	bulletinStore, err := bulletin.New(st.DB())
+	if err != nil {
+		log.Fatalf("bulletin: %v", err)
 	}
 
 	pres := newPresence()
@@ -119,8 +124,9 @@ func main() {
 		st: st, pres: pres, art: *artDir, hub: chat.NewHub(),
 		mail: mailStore, voting: votingStore, bbslist: bbsStore, gfiles: gfileStore,
 		doorStore:     doorStore,
-		lord:          lordStore,
+		dragon:        dragonStore,
 		void:          voidStore,
+		bulletins:     bulletinStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -251,8 +257,9 @@ type board struct {
 	bbslist   *bbslist.Store
 	gfiles    *gfiles.Store
 	doorStore *door.Store
-	lord      *lord.Store
+	dragon    *dragon.Store
 	void      *void.Store
+	bulletins *bulletin.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
@@ -407,6 +414,7 @@ func (b *board) runBoard(s *term.Session) {
 	tok["UH"] = user.Handle
 	b.pres.rename(id, user.Handle+"@"+host)
 
+	b.logon(s, tok, user)
 	b.mainMenu(s, tok, user)
 
 	s.Print("\x1b[0m\r\n  Later, " + user.Handle + ". NO CARRIER\r\n")
@@ -850,44 +858,70 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 		return
 	}
 
-	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m %s\x1b[0m\r\n", boardName, bd.Name)
-	if bd.Desc != "" {
-		s.Printf("\x1b[1;30m  %s\x1b[0m\r\n", bd.Desc)
-	}
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
-	if len(msgs) == 0 {
-		s.Print("\x1b[0;37m  No messages yet. Be the first.\x1b[0m\r\n")
-	}
-	for i, m := range msgs {
-		s.Printf("  \x1b[1;33m#%-3d \x1b[1;37m%s\x1b[0m\r\n", i+1, m.Subject)
-		s.Printf("       \x1b[0;37mfrom \x1b[1;36m%s \x1b[0;37mto \x1b[1;36m%s \x1b[1;30m\xfa %s\x1b[0m\r\n",
-			m.From, m.To, m.Posted.Format("2006-01-02 15:04"))
-		for _, ln := range strings.Split(m.Body, "\n") {
-			s.Print("       \x1b[0;37m" + ln + "\x1b[0m\r\n")
-		}
-		s.Print("\r\n")
-	}
+	canPost := acs.Eval(bd.PostACS, subj)
 
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-	if !acs.Eval(bd.PostACS, subj) {
-		s.Print("\x1b[1;30m  (read-only here) press any key to go back\x1b[0m")
-		s.Flush()
-		s.ReadKey()
+	// Empty base: a quick notice, with a post affordance if the caller can write.
+	if len(msgs) == 0 {
+		s.Print("\x1b[0m\x1b[2J\x1b[H")
+		s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m %s\x1b[0m\r\n", boardName, bd.Name)
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
+		s.Print("\x1b[0;37m  No messages yet. Be the first.\x1b[0m\r\n")
+		if canPost {
+			s.Print("\r\n\x1b[0;37m  [\x1b[1;37mP\x1b[0;37m]ost a message, or any key to go back: \x1b[0m")
+			s.Flush()
+			if k, ch := s.ReadKey(); k == term.KeyChar && lc(ch) == 'p' {
+				b.postMessage(s, bd, user)
+			}
+			return
+		}
+		s.Pause()
 		return
 	}
-	s.Print("\x1b[0;37m  [\x1b[1;37mP\x1b[0;37m]ost a message, or any key to go back: \x1b[0m")
-	s.Flush()
-	k, ch := s.ReadKey()
-	if k == term.KeyChar && lc(ch) == 'p' {
-		b.postMessage(s, bd, user)
+
+	// Read one message at a time, Iniquity-style: a framed header (group, sender,
+	// subject, date) over the body, with prev/next/reply/quit navigation.
+	i := 0
+	for {
+		b.showMessage(s, bd, msgs, i, canPost)
+		k, ch := s.ReadKey()
+		switch {
+		case k == term.KeyEsc, k == term.KeyEOF, k == term.KeyChar && lc(ch) == 'q':
+			return
+		case k == term.KeyRight, k == term.KeyDown, k == term.KeyEnter,
+			k == term.KeyChar && (lc(ch) == 'n' || ch == ' '):
+			if i < len(msgs)-1 {
+				i++
+			}
+		case k == term.KeyLeft, k == term.KeyUp, k == term.KeyChar && lc(ch) == 'p':
+			if i > 0 {
+				i--
+			}
+		case canPost && k == term.KeyChar && lc(ch) == 'r':
+			b.postReply(s, bd, user, msgs[i])
+		}
 	}
 }
 
+// postMessage composes a fresh public message addressed to All.
 func (b *board) postMessage(s *term.Session, bd *store.Board, user *store.User) {
-	s.Print("\r\n\x1b[0;37m  Subject: \x1b[1;37m")
+	b.compose(s, bd, user, "All", "")
+}
+
+// compose runs the subject prompt + full-screen body editor and posts the
+// result. toDefault is the recipient (All for public posts, the original sender
+// for a reply); subjDefault pre-fills the subject (blank for a new message,
+// "Re: ..." for a reply) and is kept if the caller just presses enter.
+func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDefault, subjDefault string) {
+	if subjDefault != "" {
+		s.Printf("\r\n\x1b[0;37m  Subject \x1b[1;30m[%s]\x1b[0;37m: \x1b[1;37m", subjDefault)
+	} else {
+		s.Print("\r\n\x1b[0;37m  Subject: \x1b[1;37m")
+	}
 	s.Flush()
-	subj := s.ReadLine(50)
+	subj := strings.TrimSpace(s.ReadLine(50))
+	if subj == "" {
+		subj = subjDefault
+	}
 	if subj == "" {
 		return
 	}
@@ -895,7 +929,7 @@ func (b *board) postMessage(s *term.Session, bd *store.Board, user *store.User) 
 	// Full-screen editor for the body.
 	s.Print("\x1b[0m\x1b[2J\x1b[H")
 	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m post to %s\x1b[0m\r\n", boardName, bd.Name)
-	s.Printf("\x1b[1;30m  subject: \x1b[0;37m%s\x1b[0m\r\n", subj)
+	s.Printf("\x1b[1;30m  to: \x1b[0;37m%s  \x1b[1;30msubject: \x1b[0;37m%s\x1b[0m\r\n", toDefault, subj)
 	s.Print("\x1b[1;30m  Ctrl-Z to save and post \xfa Esc to abort \xfa arrows to move\x1b[0m\r\n")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	s.Flush()
@@ -919,7 +953,7 @@ func (b *board) postMessage(s *term.Session, bd *store.Board, user *store.User) 
 	if _, err := b.st.PostMessage(&store.Message{
 		BoardID: bd.ID,
 		From:    user.Handle,
-		To:      "All",
+		To:      toDefault,
 		Subject: subj,
 		Body:    body,
 		Posted:  time.Now(),

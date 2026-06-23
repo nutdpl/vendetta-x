@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 import (
 	"database/sql"

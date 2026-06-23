@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 // inn.go is the Red Dragon Inn -- the social heart of town. Seth Able tends the
 // bar and trades rumors for gold, Violet flirts (or doesn't), and a warm bed

@@ -1,12 +1,12 @@
-// Package lord is "Red Dragon" -- a native, persistent LORD-style BBS door
-// (Legend of the Red Dragon clone). It renders directly over a term.Session and
-// keeps each warrior in its own SQLite table over the shared database, so it
+// Package dragon is "Red Dragon" -- a native, persistent fantasy RPG BBS door in
+// the classic dragon-slaying tradition. It renders directly over a term.Session
+// and keeps each warrior in its own SQLite table over the shared database, so it
 // plugs into the board like any other native door (no emulator, no drop files).
 //
 // This file holds the character model and its persistence; content.go holds the
 // game data + combat math; game.go runs the town loop and the forest; the town
 // services (shops, bank, healer, inn, player-vs-player) live in their own files.
-package lord
+package dragon
 
 import (
 	"database/sql"
@@ -52,10 +52,10 @@ func (c *Character) EffDefense() int { return c.Defense + ArmorPower(c.ArmorN) }
 // Store is the Red Dragon data layer over the shared *sql.DB.
 type Store struct{ db *sql.DB }
 
-// New returns a Store, creating the lord_chars table if absent.
+// New returns a Store, creating the dragon_chars table if absent.
 func New(db *sql.DB) (*Store, error) {
 	s := &Store{db: db}
-	const schema = `CREATE TABLE IF NOT EXISTS lord_chars (
+	const schema = `CREATE TABLE IF NOT EXISTS dragon_chars (
 		handle        TEXT PRIMARY KEY,
 		name          TEXT NOT NULL DEFAULT '',
 		level         INTEGER NOT NULL DEFAULT 1,
@@ -123,7 +123,7 @@ func scanChar(row interface{ Scan(...any) error }) (*Character, error) {
 
 // Load returns the warrior for handle (found=false if none yet).
 func (s *Store) Load(handle string) (c *Character, found bool, err error) {
-	row := s.db.QueryRow(`SELECT `+scanCols+` FROM lord_chars WHERE handle = ? COLLATE NOCASE`, handle)
+	row := s.db.QueryRow(`SELECT `+scanCols+` FROM dragon_chars WHERE handle = ? COLLATE NOCASE`, handle)
 	c, err = scanChar(row)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -136,7 +136,7 @@ func (s *Store) Load(handle string) (c *Character, found bool, err error) {
 
 // Save upserts a warrior.
 func (s *Store) Save(c *Character) error {
-	_, err := s.db.Exec(`INSERT INTO lord_chars
+	_, err := s.db.Exec(`INSERT INTO dragon_chars
 		(handle, name, level, exp, hp, maxhp, attack, defense, gold, bank, gems,
 		 charm, weapon, armor, forest_fights, player_fights, alive, married,
 		 dragon_kills, kills, deaths, last_played)
@@ -159,7 +159,7 @@ func (s *Store) Save(c *Character) error {
 // Others returns up to n other warriors (not handle), strongest first -- the
 // pool the player can challenge and the leaderboard reads from.
 func (s *Store) Others(handle string, n int) ([]Character, error) {
-	rows, err := s.db.Query(`SELECT `+scanCols+` FROM lord_chars
+	rows, err := s.db.Query(`SELECT `+scanCols+` FROM dragon_chars
 		WHERE handle <> ? COLLATE NOCASE
 		ORDER BY level DESC, exp DESC LIMIT ?`, handle, n)
 	if err != nil {

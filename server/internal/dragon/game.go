@@ -1,4 +1,4 @@
-package lord
+package dragon
 
 import (
 	"log"
@@ -83,7 +83,7 @@ func (g *Game) askInt(s string) int {
 // save persists the warrior; a failure is logged, never fatal to play.
 func (g *Game) save() {
 	if err := g.st.Save(g.ch); err != nil {
-		log.Printf("lord: save %s: %v", g.ch.Handle, err)
+		log.Printf("dragon: save %s: %v", g.ch.Handle, err)
 	}
 }
 
@@ -150,7 +150,7 @@ func (g *Game) Run() {
 }
 
 func (g *Game) intro() {
-	g.cls("Legend of the Red Dragon")
+	g.cls("Red Dragon")
 	g.pf("\x1b[0;37m  Welcome back, \x1b[1;33m%s\x1b[0;37m.\x1b[0m\r\n\r\n", g.ch.Name)
 	if !g.ch.Alive {
 		g.p("\x1b[1;31m  You are dead. Rest until the new day to fight again.\x1b[0m\r\n\r\n")
