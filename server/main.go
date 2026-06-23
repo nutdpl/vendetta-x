@@ -46,6 +46,7 @@ import (
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
 	"vendetta-x/server/internal/throttle"
+	"vendetta-x/server/internal/tw"
 	"vendetta-x/server/internal/voting"
 	"vendetta-x/server/internal/web"
 )
@@ -108,6 +109,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("lord: %v", err)
 	}
+	twStore, err := tw.New(st.DB())
+	if err != nil {
+		log.Fatalf("tw: %v", err)
+	}
 
 	pres := newPresence()
 	bbs := &board{
@@ -115,6 +120,7 @@ func main() {
 		mail: mailStore, voting: votingStore, bbslist: bbsStore, gfiles: gfileStore,
 		doorStore:     doorStore,
 		lord:          lordStore,
+		tw:            twStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -246,6 +252,7 @@ type board struct {
 	gfiles    *gfiles.Store
 	doorStore *door.Store
 	lord      *lord.Store
+	tw        *tw.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
