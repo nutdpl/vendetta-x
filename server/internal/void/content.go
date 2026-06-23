@@ -1,11 +1,12 @@
-// Package tw is "Trade Wars" -- a native, persistent TradeWars-2002-style BBS
-// door. A shared galaxy of sectors, warps, and trading ports lives in SQLite;
-// each board account flies one persistent ship through it. It renders over a
-// term.Session and plugs into the board like any other native door.
+// Package void is "Voidfarer" -- a native, persistent space-trading BBS door in
+// the classic sector/port/warp tradition. A shared galaxy of sectors, warps, and
+// trading ports lives in SQLite; each board account flies one persistent ship
+// through it. It renders over a term.Session and plugs into the board like any
+// other native door.
 //
 // content.go: the commodities, port classes, the price model, and ship-upgrade
 // costs -- the pure economic rules the rest of the game builds on.
-package tw
+package void
 
 // Universe-wide constants.
 const (

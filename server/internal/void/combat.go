@@ -1,4 +1,4 @@
-package tw
+package void
 
 // combat.go: sector fighters + ship-to-ship combat -- the (F)ighter Bay for
 // deploying/collecting fighters in a sector, and (A)ttack for engaging another

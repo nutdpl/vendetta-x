@@ -1,4 +1,4 @@
-package tw
+package void
 
 import (
 	"database/sql"
@@ -49,7 +49,7 @@ func (t *Trader) NetWorth() int {
 	return w
 }
 
-// Store is the Trade Wars data layer over the shared *sql.DB.
+// Store is the Voidfarer data layer over the shared *sql.DB.
 type Store struct{ db *sql.DB }
 
 // New creates the schema, generates the galaxy on first run, and returns the
@@ -67,23 +67,23 @@ func New(db *sql.DB) (*Store, error) {
 
 func (s *Store) migrate() error {
 	const schema = `
-CREATE TABLE IF NOT EXISTS tw_sectors (
+CREATE TABLE IF NOT EXISTS void_sectors (
 	id   INTEGER PRIMARY KEY,
 	name TEXT NOT NULL DEFAULT ''
 );
-CREATE TABLE IF NOT EXISTS tw_warps (
+CREATE TABLE IF NOT EXISTS void_warps (
 	frm INTEGER NOT NULL,
 	dst INTEGER NOT NULL,
 	PRIMARY KEY (frm, dst)
 );
-CREATE TABLE IF NOT EXISTS tw_ports (
+CREATE TABLE IF NOT EXISTS void_ports (
 	sector INTEGER PRIMARY KEY,
 	class  INTEGER NOT NULL,
 	ore    INTEGER NOT NULL DEFAULT 0,
 	org    INTEGER NOT NULL DEFAULT 0,
 	equ    INTEGER NOT NULL DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS tw_traders (
+CREATE TABLE IF NOT EXISTS void_traders (
 	handle      TEXT PRIMARY KEY,
 	name        TEXT NOT NULL DEFAULT '',
 	sector      INTEGER NOT NULL DEFAULT 1,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS tw_traders (
 	kills       INTEGER NOT NULL DEFAULT 0,
 	last_played TEXT NOT NULL DEFAULT ''
 );
-CREATE TABLE IF NOT EXISTS tw_fighters (
+CREATE TABLE IF NOT EXISTS void_fighters (
 	sector INTEGER NOT NULL,
 	owner  TEXT NOT NULL,
 	qty    INTEGER NOT NULL DEFAULT 0,
@@ -138,7 +138,7 @@ func scanTrader(row interface{ Scan(...any) error }) (*Trader, error) {
 
 // Load returns the trader for handle (found=false if none yet).
 func (s *Store) Load(handle string) (t *Trader, found bool, err error) {
-	row := s.db.QueryRow(`SELECT `+traderCols+` FROM tw_traders WHERE handle = ? COLLATE NOCASE`, handle)
+	row := s.db.QueryRow(`SELECT `+traderCols+` FROM void_traders WHERE handle = ? COLLATE NOCASE`, handle)
 	t, err = scanTrader(row)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -151,7 +151,7 @@ func (s *Store) Load(handle string) (t *Trader, found bool, err error) {
 
 // Save upserts a trader.
 func (s *Store) Save(t *Trader) error {
-	_, err := s.db.Exec(`INSERT INTO tw_traders
+	_, err := s.db.Exec(`INSERT INTO void_traders
 		(handle, name, sector, credits, turns, holds_max, ore, org, equ, fighters,
 		 shields, alignment, exp, kills, last_played)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -182,7 +182,7 @@ func (t *Trader) ResetIfNewDay() bool {
 // TradersInSector returns other traders currently parked in a sector (the PvP
 // targets), strongest first.
 func (s *Store) TradersInSector(sector int, exclude string) ([]Trader, error) {
-	rows, err := s.db.Query(`SELECT `+traderCols+` FROM tw_traders
+	rows, err := s.db.Query(`SELECT `+traderCols+` FROM void_traders
 		WHERE sector = ? AND handle <> ? COLLATE NOCASE ORDER BY fighters DESC`, sector, exclude)
 	if err != nil {
 		return nil, err
@@ -201,7 +201,7 @@ func (s *Store) TradersInSector(sector int, exclude string) ([]Trader, error) {
 
 // Rankings returns the top traders by net worth (the leaderboard).
 func (s *Store) Rankings(limit int) ([]Trader, error) {
-	rows, err := s.db.Query(`SELECT ` + traderCols + ` FROM tw_traders`)
+	rows, err := s.db.Query(`SELECT ` + traderCols + ` FROM void_traders`)
 	if err != nil {
 		return nil, err
 	}

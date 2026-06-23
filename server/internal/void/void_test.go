@@ -1,4 +1,4 @@
-package tw
+package void
 
 import (
 	"database/sql"
@@ -24,7 +24,7 @@ func testStore(t *testing.T) *Store {
 func TestGalaxyGenerated(t *testing.T) {
 	s := testStore(t)
 	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM tw_sectors`).Scan(&n); err != nil || n != TotalSectors {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM void_sectors`).Scan(&n); err != nil || n != TotalSectors {
 		t.Fatalf("sectors = %d (err %v), want %d", n, err, TotalSectors)
 	}
 	// Specials.

@@ -1,4 +1,4 @@
-package tw
+package void
 
 // portTrade runs the docked-at-port trading screen for a class 1..8 port.
 // The captain buys commodities the port SELLS and sells commodities the port

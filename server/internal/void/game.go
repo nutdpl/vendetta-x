@@ -1,4 +1,4 @@
-package tw
+package void
 
 import (
 	"log"
@@ -26,10 +26,10 @@ func NewGame(s *term.Session, st *Store, tr *Trader, rng *rand.Rand) *Game {
 
 // ---- shared UI helpers (used by every subsystem file) ----------------------
 
-// cls clears the screen and prints the Trade Wars banner with a section title.
+// cls clears the screen and prints the Voidfarer banner with a section title.
 func (g *Game) cls(title string) {
 	g.s.Print("\x1b[0m\x1b[2J\x1b[H")
-	g.s.Print("\x1b[1;36m  T R A D E   W A R S \x1b[1;30m\xc4\xc4 \x1b[1;33m" + title + "\x1b[0m\r\n")
+	g.s.Print("\x1b[1;36m  V O I D F A R E R \x1b[1;30m\xc4\xc4 \x1b[1;33m" + title + "\x1b[0m\r\n")
 	g.s.Print("\x1b[1;30m  " + rule(60) + "\x1b[0m\r\n\r\n")
 }
 
@@ -83,7 +83,7 @@ func (g *Game) askInt(s string) int {
 // save persists the trader; a failure is logged, never fatal to play.
 func (g *Game) save() {
 	if err := g.st.Save(g.tr); err != nil {
-		log.Printf("tw: save %s: %v", g.tr.Handle, err)
+		log.Printf("void: save %s: %v", g.tr.Handle, err)
 	}
 }
 
@@ -167,7 +167,7 @@ func (g *Game) Run() {
 }
 
 func (g *Game) intro() {
-	g.cls("Trade Wars 2002")
+	g.cls("Voidfarer")
 	g.pf("\x1b[0;37m  Welcome aboard, Captain \x1b[1;33m%s\x1b[0;37m.\x1b[0m\r\n\r\n", g.tr.Name)
 	g.p("\x1b[0;37m  The galaxy is open for business. Buy low, sell high, build a fleet,\r\n")
 	g.p("  and carve your name into the stars. Type a sector number to warp;\r\n")

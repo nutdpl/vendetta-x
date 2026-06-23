@@ -1,4 +1,4 @@
-package tw
+package void
 
 // stardock.go: the StarDock outfitting screen -- "Galactic Outfitters". When a
 // captain docks at the special port in Federation space (sector 5), this is the

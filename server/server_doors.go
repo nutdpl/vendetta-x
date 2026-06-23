@@ -31,7 +31,7 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 		s.Print("  \x1b[1;33m 1  \x1b[1;37mGuess the Vault   \x1b[1;30m\xfa crack the 3-digit vault code\x1b[0m\r\n")
 		s.Print("  \x1b[1;33m 2  \x1b[1;37mDice Duel         \x1b[1;30m\xfa roll against the house\x1b[0m\r\n")
 		s.Print("  \x1b[1;33m 3  \x1b[1;31mRed Dragon        \x1b[1;30m\xfa LORD-style RPG -- slay the dragon\x1b[0m\r\n")
-		s.Print("  \x1b[1;33m 4  \x1b[1;36mTrade Wars        \x1b[1;30m\xfa trade & conquer a galaxy of sectors\x1b[0m\r\n")
+		s.Print("  \x1b[1;33m 4  \x1b[1;36mVoidfarer         \x1b[1;30m\xfa trade & conquer a galaxy of sectors\x1b[0m\r\n")
 		for i, d := range ext {
 			label := d.Name
 			if len(label) > 17 {
@@ -45,7 +45,7 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 			}
 		}
 		if len(ext) == 0 {
-			s.Print("\r\n\x1b[1;30m  DOSBox-hosted doors (LORD, TradeWars, ...) are configured by the sysop.\x1b[0m\r\n")
+			s.Print("\r\n\x1b[1;30m  DOSBox-hosted doors (LORD, Usurper, ...) are configured by the sysop.\x1b[0m\r\n")
 		} else {
 			s.Printf("\r\n\x1b[1;30m  %d external %s configured by the sysop.\x1b[0m\r\n",
 				len(ext), plural(len(ext), "door", "doors"))
@@ -64,7 +64,7 @@ func (b *board) doors(s *term.Session, tok map[string]string, user *store.User) 
 		case "3":
 			b.redDragon(s, user)
 		case "4":
-			b.tradeWars(s, user)
+			b.voidfarer(s, user)
 		default:
 			n, err := strconv.Atoi(line)
 			if err != nil || n < 5 || n-5 >= len(ext) {
