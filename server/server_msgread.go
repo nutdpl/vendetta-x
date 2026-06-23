@@ -9,51 +9,24 @@ import (
 )
 
 // showMessage renders one message full-screen in the classic leet-board style:
-// a double-line framed header carrying the message group, the From/To, the
-// subject, and the date, then the body, then a navigation footer. The caller's
-// read loop (readBoard) handles the keystrokes; this only paints the screen.
+// a framed header (drawn from the art/msgread.pp pipe-code template, with the
+// group / from / to / subject / date / counter spliced in as |XX tokens) over
+// the body, then a navigation footer. The caller's read loop (readBoard)
+// handles the keystrokes; this only paints the screen.
 func (b *board) showMessage(s *term.Session, bd *store.Board, msgs []store.Message, i int, canPost bool) {
-	const inner = 70 // printable columns between the box borders
-
 	m := msgs[i]
-	s.Print("\x1b[0m\x1b[2J\x1b[H")
 
-	top := "\xc9" + strings.Repeat("\xcd", inner) + "\xbb"
-	mid := "\xcc" + strings.Repeat("\xcd", inner) + "\xb9"
-	bot := "\xc8" + strings.Repeat("\xcd", inner) + "\xbc"
-
-	s.Printf("  \x1b[1;36m%s\x1b[0m\r\n", top)
-
-	// Title bar: the message group (board) on the left, a "msg #N of T" counter
-	// pinned to the right.
-	counter := "msg #" + strconv.Itoa(i+1) + " of " + strconv.Itoa(len(msgs))
-	group := truncStr(bd.Name, inner-len(counter)-4)
-	gap := inner - 2 - len([]rune(group)) - len(counter)
-	if gap < 1 {
-		gap = 1
-	}
-	s.Printf("  \x1b[1;36m\xba \x1b[1;35m%s%s\x1b[1;33m%s \x1b[1;36m\xba\x1b[0m\r\n",
-		group, strings.Repeat(" ", gap), counter)
-
-	s.Printf("  \x1b[1;36m%s\x1b[0m\r\n", mid)
-
-	// A labelled field row, the value clipped + padded to a fixed width so the
-	// right border always lines up.
-	row := func(label, val string) {
-		v := []rune(val)
-		if len(v) > 59 {
-			v = v[:59]
-		}
-		valStr := string(v) + strings.Repeat(" ", 59-len(v))
-		s.Printf("  \x1b[1;36m\xba \x1b[1;33m%-8s\x1b[1;30m: \x1b[1;37m%s\x1b[1;36m\xba\x1b[0m\r\n",
-			label, valStr)
-	}
-	row("From", m.From)
-	row("To", m.To)
-	row("Subject", m.Subject)
-	row("Date", m.Posted.Format("Mon 2006-01-02 15:04"))
-
-	s.Printf("  \x1b[1;36m%s\x1b[0m\r\n\r\n", bot)
+	// The header frame is an art template; every field is a token so the
+	// renderer's width modifiers (|XX\<NN) keep the right border aligned. Set
+	// all keys (empty string included) so none ever falls back to a literal.
+	s.RenderScreen(b.art+"/msgread.pp", map[string]string{
+		"MG": bd.Name,
+		"MC": "msg #" + strconv.Itoa(i+1) + " of " + strconv.Itoa(len(msgs)),
+		"MF": m.From,
+		"MT": m.To,
+		"MS": m.Subject,
+		"MD": m.Posted.Format("Mon 2006-01-02 15:04"),
+	})
 
 	// The body, plainly indented under the header.
 	for _, ln := range strings.Split(m.Body, "\n") {
