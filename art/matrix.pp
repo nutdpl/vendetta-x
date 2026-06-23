@@ -17,4 +17,4 @@
 |{17,18,L,Login}
 |{17,38,N,New User}
 |{17,58,G,Goodbye}
-|[Y19|[X11ÄÄ |08nodes |15|CN  |07ú  |08users |15|UC  |07ú  |08local |15|TI |08ÄÄ
+|[Y19|[X11ÄÄ |08nodes |15|CN  |07ú  |08users |15|TU  |07ú  |08local |15|TI |08ÄÄ

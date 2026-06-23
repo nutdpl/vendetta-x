@@ -9,17 +9,25 @@ semantic versioning.
 ### Added
 
 - A cinematic **connect entrance**. Every caller (telnet and ssh) now lands on a
-  short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), after which
-  the login matrix **paints on line by line** instead of snapping into place --
-  the classic "board drawing over a modem" feel. Any keypress skips the whole
-  intro, and a hotkey hit mid-paint both skips _and_ selects its menu option, so
-  it never slows a regular down.
+  short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), then the
+  **flagship loginscreen** -- the board's cyan "VENDETTA -- underground art
+  board" pride piece -- painted on line by line and gated on a keypress, and
+  finally the login matrix, which **also paints on** instead of snapping into
+  place. Any keypress skips ahead, and a hotkey hit mid-paint both skips _and_
+  selects its menu option, so it never slows a regular down.
+- The **main menu now paints on** the first time a caller lands on it (redraws
+  after backing out of a sub-area stay instant).
+- A **new-user welcome ceremony**: the instant an account is created, the caller
+  gets a paced "credentials issued / ACCESS GRANTED" sequence, the entry-granted
+  banner painted in with their handle/location/first call, and the access they
+  were just assigned -- turning a one-line "account created" into an arrival.
 - A live **status footer** on the login matrix: nodes online, total users, and
   the board's local time, spliced in fresh on every connection.
 - New session-layer animation primitives in `internal/term` -- `Sleep`,
   `WaitKey` (an interruptible timed wait that tells a read deadline from a real
-  hangup), and `Reveal` (a marker-preserving, skippable line-by-line screen
-  paint) -- with tests covering pacing, skip, and key pushback.
+  hangup, pushing the skip key back for the next read), `WaitAnyKey` (a
+  splash "press a key" gate), and `Reveal` (a marker-preserving, skippable
+  line-by-line screen paint) -- with tests covering pacing, skip, and pushback.
 
 ## [0.9.0] - 2026-06-22
 

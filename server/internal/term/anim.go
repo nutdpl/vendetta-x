@@ -76,6 +76,30 @@ func (s *Session) WaitKey(d time.Duration) bool {
 	return true
 }
 
+// WaitAnyKey waits up to d for a keypress and consumes it, used to gate a splash
+// on "press any key". Unlike WaitKey it does NOT push the key back: dismissing
+// the splash spends the key, so it doesn't leak into the screen that follows. A
+// key already stashed by a preceding animation (the caller skipped ahead) counts
+// as the dismissal. d <= 0 (or a transport without a read deadline) just drains
+// any pending key and returns.
+func (s *Session) WaitAnyKey(d time.Duration) {
+	s.Flush()
+	if s.pending != nil {
+		s.pending = nil
+		return
+	}
+	if s.dl == nil || d <= 0 {
+		s.sleep(d)
+		return
+	}
+	if err := s.dl.SetReadDeadline(time.Now().Add(d)); err != nil {
+		s.sleep(d)
+		return
+	}
+	s.ReadKey()
+	s.dl.SetReadDeadline(time.Time{})
+}
+
 // Reveal renders a .pp/.ans screen to a buffer, then streams it to the wire one
 // line at a time with lineDelay between lines, so the art paints on top-to-bottom
 // like a board drawing over a modem. Any keypress dumps the rest instantly. It

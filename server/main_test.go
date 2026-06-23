@@ -91,6 +91,15 @@ func newSession(t *testing.T, b *board) *session {
 	return se
 }
 
+// enter dismisses the connect splash -- the modem handshake and the flagship
+// loginscreen that now precede the login matrix -- the way a caller taps a key
+// to get past it. Tests call this right after newSession to reach the matrix.
+func (se *session) enter() {
+	se.t.Helper()
+	se.expect("log in") // the loginscreen's "press any key to log in" gate
+	se.send(" ")
+}
+
 // send writes input bytes to the board. Because net.Pipe is unbuffered, the
 // board may still be mid-flush (blocked on a write) when we want to send the
 // next key -- so we pump reads concurrently while writing, ensuring the board
@@ -194,6 +203,7 @@ func (se *session) waitDone() {
 func TestNewUserSignupAndQuit(t *testing.T) {
 	b := newTestBoard(t)
 	se := newSession(t, b)
+	se.enter()
 
 	const handle = "tester01"
 
@@ -214,9 +224,11 @@ func TestNewUserSignupAndQuit(t *testing.T) {
 	se.expect("Location:")
 	se.send("Somewhere\r")
 
-	// Account created -> Pause() waits for a key, then we hit the logon sequence.
-	se.expect("Account created")
-	se.send(" ") // dismiss the "press any key" pause
+	// Account created -> the welcome ceremony plays (credentials / ACCESS
+	// GRANTED / entry-granted banner) and ends on a Pause(); one key skips the
+	// rest and dismisses the final pause, landing us in the logon sequence.
+	se.expect("ACCESS GRANTED")
+	se.send(" ")
 
 	// The logon sequence offers a "quick logon" -- answer yes to skip the tour
 	// (who's online / sysinfo / bulletins / wall) and land at the main menu.
@@ -252,6 +264,7 @@ func TestNewUserSignupAndQuit(t *testing.T) {
 func TestLoginPasswordlessUserAndUserList(t *testing.T) {
 	b := newTestBoard(t)
 	se := newSession(t, b)
+	se.enter()
 
 	// At the matrix, choose Login (hotkey 'l').
 	se.expect("Login")

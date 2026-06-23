@@ -444,9 +444,9 @@ func subjectOf(u *store.User) acs.Subject {
 func (b *board) loginTokens(tok map[string]string) {
 	tok["CN"] = strconv.Itoa(len(b.pres.list()))
 	if users, err := b.st.Users(); err == nil {
-		tok["UC"] = strconv.Itoa(len(users))
+		tok["TU"] = strconv.Itoa(len(users))
 	} else {
-		tok["UC"] = "?"
+		tok["TU"] = "?"
 	}
 	tok["TI"] = time.Now().Format("15:04")
 }
@@ -640,15 +640,23 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 		return nil
 	}
 	u.ID = id
-	s.Print("\x1b[1;32m  Account created. Welcome to " + b.siteName() + ", " + handle + "!\x1b[0m\r\n")
-	s.Pause()
+	b.welcomeNewUser(s, tok, u, loc)
 	return u
 }
 
 // mainMenu is the top-level lightbar. Loops until Goodbye / carrier loss.
 func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.User) {
+	first := true
 	for {
-		opts := s.RenderScreen(b.art+"/mainmenu.pp", tok)
+		var opts []render.Marker
+		if first {
+			// Paint the menu in line by line the first time the caller lands on
+			// it; redraws after backing out of a sub-area are instant.
+			opts, _ = s.Reveal(b.art+"/mainmenu.pp", tok, 16*time.Millisecond)
+			first = false
+		} else {
+			opts = s.RenderScreen(b.art+"/mainmenu.pp", tok)
+		}
 		key, ok := s.Lightbar(opts, 0)
 		if !ok {
 			return
