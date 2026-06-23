@@ -96,7 +96,7 @@ func newSession(t *testing.T, b *board) *session {
 // to get past it. Tests call this right after newSession to reach the matrix.
 func (se *session) enter() {
 	se.t.Helper()
-	se.expect("log in") // the loginscreen's "press any key to log in" gate
+	se.expect("enter the board") // the loginscreen's "press any key" gate
 	se.send(" ")
 }
 

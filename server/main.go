@@ -406,7 +406,7 @@ func (b *board) runBoard(s *term.Session) {
 	}
 	b.loginTokens(tok)
 
-	b.connect(s)
+	b.connect(s, tok)
 	user := b.matrix(s, tok)
 	if user == nil {
 		s.Print("\x1b[0m\r\n  NO CARRIER\r\n")
@@ -437,16 +437,21 @@ func subjectOf(u *store.User) acs.Subject {
 	}
 }
 
-// loginTokens splices the live "front porch" stats the matrix art shows --
-// nodes online, total users, and the board's local time -- into tok. Cheap
-// enough to recompute per connection; it makes the login screen feel alive
-// instead of like a static image.
+// loginTokens splices the live "front porch" stats the login art shows --
+// nodes online, total users, total calls, and the board's local time -- into
+// tok. Cheap enough to recompute per connection; it makes the loginscreen and
+// matrix feel alive instead of like static images.
 func (b *board) loginTokens(tok map[string]string) {
 	tok["CN"] = strconv.Itoa(len(b.pres.list()))
 	if users, err := b.st.Users(); err == nil {
 		tok["TU"] = strconv.Itoa(len(users))
+		calls := 0
+		for i := range users {
+			calls += users[i].Calls
+		}
+		tok["TC"] = strconv.Itoa(calls)
 	} else {
-		tok["TU"] = "?"
+		tok["TU"], tok["TC"] = "?", "?"
 	}
 	tok["TI"] = time.Now().Format("15:04")
 }

@@ -30,7 +30,7 @@ func play(s *term.Session, beats []beat) {
 // keypress skips straight through, so it never gets in a regular's way. SSH
 // callers get the same sequence (it just isn't skippable without a read
 // deadline); the "modem" framing is pure theatre and all the sweeter for it.
-func (b *board) connect(s *term.Session) {
+func (b *board) connect(s *term.Session, tok map[string]string) {
 	s.Print("\x1b[0m\x1b[2J\x1b[H\r\n")
 
 	// The dialing handshake: one paced line at a time, each pause its own skip
@@ -48,7 +48,7 @@ func (b *board) connect(s *term.Session) {
 	// painted on line by line, gated on a keypress before the login matrix. Any
 	// key pressed during the paint both finishes it and dismisses the splash.
 	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Reveal(b.art+"/loginscreen.ans", nil, 22*time.Millisecond)
+	s.Reveal(b.art+"/loginscreen.ans", tok, 22*time.Millisecond)
 	s.WaitAnyKey(8 * time.Second)
 }
 

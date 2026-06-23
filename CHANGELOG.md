@@ -10,11 +10,13 @@ semantic versioning.
 
 - A cinematic **connect entrance**. Every caller (telnet and ssh) now lands on a
   short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), then the
-  **flagship loginscreen** -- the board's cyan "VENDETTA -- underground art
-  board" pride piece -- painted on line by line and gated on a keypress, and
-  finally the login matrix, which **also paints on** instead of snapping into
-  place. Any keypress skips ahead, and a hotkey hit mid-paint both skips _and_
-  selects its menu option, so it never slows a regular down.
+  **flagship loginscreen** -- a full 80x30 piece that scrolls as it paints: a
+  shaded gradient `VENDETTA` block wordmark with a drop shadow over a framed
+  scene panel whose stats are **live** (nodes online, total users, total calls,
+  spliced via `|CN`/`|TU`/`|TC` tokens) -- gated on a keypress, and finally the
+  login matrix, which **also paints on** instead of snapping into place. Any
+  keypress skips ahead, and a hotkey hit mid-paint both skips _and_ selects its
+  menu option, so it never slows a regular down.
 - The **main menu now paints on** the first time a caller lands on it (redraws
   after backing out of a sub-area stay instant).
 - A **new-user welcome ceremony**: the instant an account is created, the caller
