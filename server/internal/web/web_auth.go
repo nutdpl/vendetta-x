@@ -147,7 +147,7 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 
 	// Brute-force throttle: too many recent failures from this IP and we stop
 	// checking credentials until the window clears.
-	ip := clientIP(r)
+	ip := s.clientIP(r)
 	if s.loginThrottle.Blocked(ip) {
 		s.renderAuth(w, r, "login", "Too many login attempts. Wait a few minutes and try again.", next, handle)
 		return
@@ -188,7 +188,8 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.loginThrottle.Reset(ip) // clean slate on success
+	// NB: success does NOT reset the throttle (see throttle.Reset) so an
+	// attacker can't interleave a login to clear the limiter.
 	if err := s.st.RecordLogin(u.ID); err != nil {
 		log.Printf("web: RecordLogin: %v", err)
 	}

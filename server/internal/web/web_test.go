@@ -129,7 +129,7 @@ func TestSysopGating(t *testing.T) {
 	}
 
 	// 2) a freshly registered user (SL 10) is forbidden.
-	rec = do(h, http.MethodPost, "/register", "handle=noob&password=p&verify=p", nil)
+	rec = do(h, http.MethodPost, "/register", "handle=noob&password=passw0rd&verify=passw0rd", nil)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("register: status = %d, want 303", rec.Code)
 	}
@@ -145,7 +145,7 @@ func TestSysopGating(t *testing.T) {
 	}
 
 	// 3) the seeded admin (nut, SL 255) gets in. First login sets a password.
-	rec = do(h, http.MethodPost, "/login", "handle=nut&password=secret", nil)
+	rec = do(h, http.MethodPost, "/login", "handle=nut&password=secretpw", nil)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("admin login: status = %d, want 303", rec.Code)
 	}
@@ -277,7 +277,7 @@ func TestUploadFlow(t *testing.T) {
 	}
 
 	// log in (nut), then upload.
-	rec = do(h, http.MethodPost, "/login", "handle=nut&password=secret", nil)
+	rec = do(h, http.MethodPost, "/login", "handle=nut&password=secretpw", nil)
 	cookies := rec.Result().Cookies()
 
 	body, ct = build()

@@ -216,9 +216,9 @@ func TestNewUserSignupAndQuit(t *testing.T) {
 	se.expect("Pick a handle:")
 	se.send(handle + "\r")
 	se.expect("Choose a password:")
-	se.send("hunter2\r")
+	se.send("hunter2pw\r")
 	se.expect("Verify password:")
-	se.send("hunter2\r")
+	se.send("hunter2pw\r")
 	se.expect("Real name:")
 	se.send("Test Person\r")
 	se.expect("Location:")
@@ -277,9 +277,9 @@ func TestLoginPasswordlessUserAndUserList(t *testing.T) {
 	se.send("phantom\r")
 	se.expect("set one now")
 	se.expect("Password:")
-	se.send("ghost9\r")
+	se.send("ghostpass\r")
 	se.expect("Verify:")
-	se.send("ghost9\r")
+	se.send("ghostpass\r")
 	se.expect("Welcome, phantom!")
 
 	// The logon sequence offers a "quick logon" -- answer yes to skip the tour
@@ -303,6 +303,37 @@ func TestLoginPasswordlessUserAndUserList(t *testing.T) {
 		t.Fatalf("expected NO CARRIER in final output, got:\n%s", se.out)
 	}
 	se.waitDone()
+}
+
+// TestSecureSeedAccountsClaimsAdmin verifies the seed-takeover hole is shut:
+// the seeded sysop "nut" (SL 255, flag A) starts passwordless, and after
+// secureSeedAccounts runs it has a real password (so it can no longer be claimed
+// by whoever connects first), while a non-privileged seed account is untouched.
+func TestSecureSeedAccountsClaimsAdmin(t *testing.T) {
+	b := newTestBoard(t)
+
+	nut, err := b.st.UserByHandle("nut")
+	if err != nil || nut == nil {
+		t.Fatalf("seed nut missing: %v", err)
+	}
+	if nut.Password != "" {
+		t.Fatalf("expected nut seeded passwordless, got a password already")
+	}
+	if !isPrivileged(nut) {
+		t.Fatalf("nut should be privileged (SL %d flags %q)", nut.SL, nut.Flags)
+	}
+
+	secureSeedAccounts(b.st)
+
+	nut, _ = b.st.UserByHandle("nut")
+	if nut.Password == "" {
+		t.Fatal("secureSeedAccounts left the privileged account claimable (empty password)")
+	}
+	// A non-privileged passwordless account (phantom) is intentionally left
+	// alone -- it's safe to claim on first login.
+	if ph, _ := b.st.UserByHandle("phantom"); ph == nil || isPrivileged(ph) || ph.Password != "" {
+		t.Fatalf("phantom should remain a non-privileged passwordless account, got %+v", ph)
+	}
 }
 
 // ---- pure helper tests (no session) ----------------------------------------

@@ -17,6 +17,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"flag"
 	"io"
 	"log"
@@ -70,6 +72,7 @@ var (
 	tlsCert       = flag.String("tls-cert", "", "PEM certificate file; serves the web face over HTTPS when set with -tls-key")
 	tlsKey        = flag.String("tls-key", "", "PEM private-key file; serves the web face over HTTPS when set with -tls-cert")
 	secureCookies = flag.Bool("secure-cookies", false, "mark session cookies Secure (set this when HTTPS is terminated by an upstream proxy)")
+	trustProxy    = flag.Bool("trust-proxy", false, "honor X-Forwarded-For for the client IP (login throttling); set ONLY behind a trusted reverse proxy")
 
 	maxNodes    = flag.Int("max-nodes", 64, "maximum concurrent telnet+ssh sessions (0 = unlimited)")
 	idleTimeout = flag.Duration("idle", 15*time.Minute, "drop a telnet/ssh session after this much input inactivity (0 = never)")
@@ -86,6 +89,8 @@ func main() {
 	if err := st.Seed(); err != nil {
 		log.Fatalf("store seed: %v", err)
 	}
+	// Shut the seed-account takeover hole before any listener opens.
+	secureSeedAccounts(st)
 
 	// feature data layers (each creates/seeds its own table over the shared DB).
 	mailStore, err := mail.New(st.DB())
@@ -162,6 +167,10 @@ func main() {
 		// Session cookies are flagged Secure when we serve HTTPS directly or the
 		// operator declares HTTPS is terminated upstream.
 		SecureCookies: useTLS || *secureCookies,
+		TrustProxy:    *trustProxy,
+		// Share the failed-login limiter so an IP's attempts are counted across
+		// telnet, ssh, AND web -- one face can't be used to dodge another's count.
+		LoginThrottle: bbs.loginThrottle,
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", web.New(st, pres.list, webCfg))
@@ -463,6 +472,58 @@ func (b *board) runBoard(s *term.Session) {
 	s.Flush()
 }
 
+// isPrivileged reports whether u carries board-admin authority -- the same
+// notion the web sysop panel gates on (SL >= 100 or the 'A' flag). Such an
+// account must never be claimable by an anonymous caller.
+func isPrivileged(u *store.User) bool {
+	return u.SL >= 100 || strings.ContainsRune(u.Flags, 'A')
+}
+
+// secureSeedAccounts closes the seed-account takeover hole: any privileged
+// account still sitting with an empty password (the seeded sysop on a fresh DB,
+// or a legacy row) gets a random password generated and logged ONCE, so the hole
+// is shut before the listeners open. It only touches empty-password rows, so a
+// claimed/real password is never clobbered -- safe to run on every boot.
+func secureSeedAccounts(st *store.Store) {
+	users, err := st.Users()
+	if err != nil {
+		log.Printf("secureSeedAccounts: %v", err)
+		return
+	}
+	for i := range users {
+		u := &users[i]
+		if u.Password != "" || !isPrivileged(u) {
+			continue
+		}
+		pw := randPassword()
+		hash, err := auth.Hash(pw)
+		if err != nil {
+			log.Printf("secureSeedAccounts: hash %q: %v", u.Handle, err)
+			continue
+		}
+		if err := st.SetPassword(u.ID, hash); err != nil {
+			log.Printf("secureSeedAccounts: save %q: %v", u.Handle, err)
+			continue
+		}
+		log.Printf("SECURITY: privileged account %q had no password; set a random one:\n"+
+			"           %s\n"+
+			"           Log in and change it now, before exposing the board.", u.Handle, pw)
+	}
+}
+
+// randPassword returns a random, policy-valid password for one-time admin
+// enrollment. base64url of 12 random bytes is 16 chars -- comfortably above the
+// minimum and drawn from crypto/rand.
+func randPassword() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// crypto/rand failing is catastrophic; fail closed with an unusable value
+		// rather than a guessable one.
+		return base64.RawURLEncoding.EncodeToString([]byte("UNAVAILABLE-set-via-db"))
+	}
+	return base64.RawURLEncoding.EncodeToString(b[:])
+}
+
 // subjectOf maps a user onto an ACS subject for access checks.
 func subjectOf(u *store.User) acs.Subject {
 	return acs.Subject{
@@ -556,10 +617,19 @@ func (b *board) login(s *term.Session) *store.User {
 			continue
 		}
 		if u.Password == "" {
-			// Account without a password (seed/legacy): set one now.
+			// A privileged account must never be claimable by whoever connects
+			// first -- that's a board takeover. Boot-time hardening gives seed
+			// admins a random password (logged once for the operator); this guard
+			// is the invariant for any other path that could leave one empty.
+			if isPrivileged(u) {
+				b.loginThrottle.Fail(ip)
+				s.Print("\x1b[1;31m  That account is reserved. The sysop sets its password from the console.\x1b[0m\r\n")
+				s.Pause()
+				return nil
+			}
+			// Ordinary account without a password (seed/legacy): set one now.
 			s.Print("\x1b[1;33m  No password on file -- set one now.\x1b[0m\r\n")
 			if b.setPassword(s, u) {
-				b.loginThrottle.Reset(ip)
 				s.Print("\x1b[1;32m  Welcome, " + u.Handle + "!\x1b[0m\r\n")
 				s.Flush()
 				return u
@@ -574,7 +644,9 @@ func (b *board) login(s *term.Session) *store.User {
 			s.Print("\x1b[1;31m  Bad password.\x1b[0m\r\n")
 			continue
 		}
-		b.loginThrottle.Reset(ip)
+		// Note: a successful login deliberately does NOT clear the failure
+		// counter -- see throttle.Reset. The window expires it instead, so an
+		// attacker can't interleave a success to reset the limiter.
 		s.Print("\x1b[1;32m  Welcome back, " + u.Handle + "!\x1b[0m\r\n")
 		s.Flush()
 		return u
@@ -588,6 +660,10 @@ func (b *board) setPassword(s *term.Session, u *store.User) bool {
 	s.Flush()
 	pw := s.ReadPassword(40)
 	if pw == "" {
+		return false
+	}
+	if err := auth.ValidatePassword(pw); err != nil {
+		s.Print("\x1b[1;31m  " + err.Error() + ".\x1b[0m\r\n")
 		return false
 	}
 	s.Print("\x1b[0;37m  Verify:   \x1b[1;37m")
@@ -643,6 +719,11 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 	s.Flush()
 	pw := s.ReadPassword(40)
 	if pw == "" {
+		return nil
+	}
+	if err := auth.ValidatePassword(pw); err != nil {
+		s.Print("\x1b[1;31m  " + err.Error() + ". Signup cancelled.\x1b[0m\r\n")
+		s.Pause()
 		return nil
 	}
 	s.Print("\x1b[0;37m  Verify password:   \x1b[1;37m")

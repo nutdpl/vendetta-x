@@ -59,6 +59,14 @@ type Config struct {
 	// SecureCookies marks session cookies Secure (HTTPS-only). Set when the web
 	// face is served over TLS, directly or behind a terminating proxy.
 	SecureCookies bool
+	// TrustProxy enables honoring the X-Forwarded-For header for the client IP
+	// (login throttling). Leave false unless the board sits behind a trusted
+	// reverse proxy that sets XFF -- otherwise a client can spoof it and dodge
+	// the throttle. When false, the real TCP peer (RemoteAddr) is always used.
+	TrustProxy bool
+	// LoginThrottle, when set, is shared with the telnet/ssh faces so brute-force
+	// attempts are counted across all three. Nil means the web face uses its own.
+	LoginThrottle *throttle.Throttle
 }
 
 // New builds the HTTP handler for the web face. st is the shared data store;
@@ -75,7 +83,13 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 
 	s := &server{st: st, online: online, sessions: newSessionManager(), cfg: cfg}
 	s.dlSecret = newDownloadSecret()
-	s.loginThrottle = throttle.New(8, 10*time.Minute) // 8 failed logins / 10 min / IP
+	// Share the telnet/ssh limiter when given, so an IP's failures count across
+	// every face; otherwise stand up a local one.
+	if cfg.LoginThrottle != nil {
+		s.loginThrottle = cfg.LoginThrottle
+	} else {
+		s.loginThrottle = throttle.New(8, 10*time.Minute) // 8 failed logins / 10 min / IP
+	}
 	// feature data layers over the shared DB (tables already created by main;
 	// New is idempotent so constructing here is safe either way).
 	s.mail, _ = mail.New(st.DB())
@@ -293,7 +307,7 @@ func (s *server) admin(h http.HandlerFunc) http.HandlerFunc {
 		// Audit every sysop mutation (state-changing requests) with the actor
 		// and source, so config/user/content changes leave a trail.
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			log.Printf("[audit] %s %s by %s from %s", r.Method, r.URL.Path, u.Handle, clientIP(r))
+			log.Printf("[audit] %s %s by %s from %s", r.Method, r.URL.Path, u.Handle, s.clientIP(r))
 		}
 		h(w, r)
 	}
@@ -401,15 +415,19 @@ func isAdmin(u *store.User) bool {
 
 // ---- shared helpers ----
 
-// clientIP returns the caller's IP for rate-limiting: the left-most
-// X-Forwarded-For hop when present (the board is commonly behind a TLS proxy),
-// otherwise the connection's remote host.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if i := strings.IndexByte(xff, ','); i >= 0 {
-			return strings.TrimSpace(xff[:i])
+// clientIP returns the caller's IP for rate-limiting. The X-Forwarded-For
+// header is honored ONLY when the operator has declared a trusted proxy
+// (cfg.TrustProxy) -- otherwise any client could spoof XFF and key every login
+// attempt to a fresh throttle bucket, defeating the limiter. With no trusted
+// proxy the real TCP peer (RemoteAddr) is always used.
+func (s *server) clientIP(r *http.Request) string {
+	if s.cfg.TrustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if i := strings.IndexByte(xff, ','); i >= 0 {
+				return strings.TrimSpace(xff[:i])
+			}
+			return strings.TrimSpace(xff)
 		}
-		return strings.TrimSpace(xff)
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
