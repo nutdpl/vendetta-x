@@ -72,8 +72,27 @@ func (s *Session) WaitKey(d time.Duration) bool {
 	}
 	// A real key: stash it so the screen that follows the animation still sees
 	// it. Hammering a hotkey through the intro skips it AND selects the option.
-	s.pending = &keyEvent{k: k, ch: ch}
+	s.setPending(k, ch)
 	return true
+}
+
+// setPending stashes a one-key pushback under readMu (so it never races a
+// concurrent ReadKey). takePending consumes a stashed key, reporting whether one
+// was present.
+func (s *Session) setPending(k Kind, ch byte) {
+	s.readMu.Lock()
+	s.pending = &keyEvent{k: k, ch: ch}
+	s.readMu.Unlock()
+}
+
+func (s *Session) takePending() bool {
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	if s.pending != nil {
+		s.pending = nil
+		return true
+	}
+	return false
 }
 
 // WaitAnyKey waits up to d for a keypress and consumes it, used to gate a splash
@@ -84,8 +103,7 @@ func (s *Session) WaitKey(d time.Duration) bool {
 // any pending key and returns.
 func (s *Session) WaitAnyKey(d time.Duration) {
 	s.Flush()
-	if s.pending != nil {
-		s.pending = nil
+	if s.takePending() {
 		return
 	}
 	if s.dl == nil || d <= 0 {

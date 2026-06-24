@@ -67,6 +67,14 @@ type Session struct {
 	// (see anim.go) is stashed here so the next ReadKey delivers it. That makes a
 	// hotkey hit mid-intro both skip the paint AND land on the menu.
 	pending *keyEvent
+
+	// readMu serializes input decoding. The teleconference runs a second
+	// goroutine that reads keys (so it can wait on a chat message OR a keypress);
+	// on transports without a read deadline (SSH) that reader can still be blocked
+	// in ReadKey when the caller leaves chat and the main loop resumes reading.
+	// readMu guarantees the two never touch the buffered reader / pending state
+	// concurrently, so leaving chat costs at most one key, never a data race.
+	readMu sync.Mutex
 }
 
 type keyEvent struct {
@@ -130,6 +138,8 @@ func (s *Session) Negotiate() {
 
 // ReadKey returns one decoded key, stripping telnet IAC and decoding arrows.
 func (s *Session) ReadKey() (Kind, byte) {
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
 	s.markActivity()
 	if s.pending != nil {
 		ev := *s.pending

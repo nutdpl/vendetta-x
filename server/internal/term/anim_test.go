@@ -91,6 +91,38 @@ func TestWaitKeyTimesOutWithoutFalseHangup(t *testing.T) {
 	}
 }
 
+// TestConcurrentReadKeyNoRace mirrors the teleconference teardown hazard: a
+// second goroutine is blocked in ReadKey (the chat key reader) when the main
+// loop resumes reading. readMu must serialize them so neither the buffered
+// reader nor the pending-key state is touched concurrently. Run under -race.
+func TestConcurrentReadKeyNoRace(t *testing.T) {
+	s, cli := pair(t)
+
+	// A "chat reader" blocked in ReadKey, and the "main loop" also reading.
+	got := make(chan byte, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			k, ch := s.ReadKey()
+			if k == KeyChar {
+				got <- ch
+			} else {
+				got <- 0
+			}
+		}()
+	}
+
+	// Feed two bytes; readMu ensures each ReadKey decodes one without overlap.
+	go func() { cli.Write([]byte("ab")) }()
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-got:
+		case <-time.After(2 * time.Second):
+			t.Fatal("a concurrent ReadKey did not return")
+		}
+	}
+}
+
 func TestWaitKeyPushesKeyBackForNextRead(t *testing.T) {
 	s, cli := pair(t)
 	go func() { cli.Write([]byte("x")) }()
