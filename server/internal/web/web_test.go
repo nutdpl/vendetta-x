@@ -90,15 +90,37 @@ func TestBadBoardIDNo500(t *testing.T) {
 	}
 }
 
-func TestPostOnelinerRedirects(t *testing.T) {
+func TestPostOnelinerRequiresLoginAndIgnoresAuthorField(t *testing.T) {
 	h := newTestServer(t)
-	form := strings.NewReader("author=nut&text=hello+wall")
-	req := httptest.NewRequest(http.MethodPost, "/oneliner", form)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+
+	// Anonymous: the wall is gated now -- bounce to login, don't post.
+	rec := do(h, http.MethodPost, "/oneliner", "author=nut&text=anon+spam", nil)
 	if rec.Code != http.StatusSeeOther {
-		t.Errorf("POST /oneliner: status = %d, want 303", rec.Code)
+		t.Fatalf("anon POST /oneliner: status = %d, want 303", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); !strings.Contains(loc, "/login") {
+		t.Fatalf("anon POST /oneliner should redirect to login, got %q", loc)
+	}
+
+	// Logged in as phantom, but the form lies that the author is "nut": the
+	// entry must be attributed to the authenticated caller, not the form field.
+	rec = do(h, http.MethodPost, "/login", "handle=phantom&password=ghostpass", nil)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("phantom login: status = %d, want 303", rec.Code)
+	}
+	cookies := rec.Result().Cookies()
+	rec = do(h, http.MethodPost, "/oneliner", "author=nut&text=hello+wall", cookies)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("logged-in POST /oneliner: status = %d, want 303", rec.Code)
+	}
+	body := do(h, http.MethodGet, "/", "", nil).Body.String()
+	if !strings.Contains(body, "hello wall") {
+		t.Fatal("oneliner text not shown on the wall")
+	}
+	// The spoofed "nut" author must not appear as this entry's author; the
+	// caller (phantom) must.
+	if !strings.Contains(body, "phantom") {
+		t.Fatal("oneliner not attributed to the authenticated caller (phantom)")
 	}
 }
 
@@ -111,6 +133,40 @@ func TestPostMessageRedirects(t *testing.T) {
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusSeeOther {
 		t.Errorf("POST /boards/1: status = %d, want 303", rec.Code)
+	}
+}
+
+// TestCSRFOriginGuard proves the CSRF guard: a state-changing POST carrying a
+// foreign Origin is rejected, while a same-origin one (and any safe GET) passes.
+func TestCSRFOriginGuard(t *testing.T) {
+	h := newTestServer(t)
+
+	post := func(origin string) int {
+		r := httptest.NewRequest(http.MethodPost, "/oneliner", strings.NewReader("text=hi"))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if origin != "" {
+			r.Header.Set("Origin", origin)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, r)
+		return rec.Code
+	}
+
+	// httptest.NewRequest uses Host "example.com".
+	if code := post("http://evil.example.net"); code != http.StatusForbidden {
+		t.Fatalf("cross-origin POST: status = %d, want 403", code)
+	}
+	if code := post("http://example.com"); code == http.StatusForbidden {
+		t.Fatal("same-origin POST was blocked by the CSRF guard")
+	}
+
+	// A safe GET is never origin-checked, even cross-origin.
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("Origin", "http://evil.example.net")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, r)
+	if rec.Code == http.StatusForbidden {
+		t.Fatal("a safe GET was blocked by the CSRF guard")
 	}
 }
 

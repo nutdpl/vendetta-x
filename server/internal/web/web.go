@@ -26,6 +26,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"sort"
 	"strconv"
@@ -225,7 +226,49 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("GET /sysop/settings", s.admin(s.sysopSettings))
 	mux.HandleFunc("POST /sysop/settings", s.admin(s.sysopSettingsSave))
 
-	return mux
+	// Wrap the whole router in the CSRF guard so every state-changing request
+	// is origin-checked in one place.
+	return s.csrfGuard(mux)
+}
+
+// csrfGuard rejects cross-origin state-changing requests. Modern browsers send
+// an Origin header on every unsafe-method request (including top-level form
+// navigations, the gap SameSite=Lax leaves open), so verifying it against the
+// request's own Host blocks the classic forged-POST attack -- most importantly
+// the privilege-escalation routes under /sysop -- without threading a token
+// through every form. Safe methods (GET/HEAD/OPTIONS) pass through untouched.
+func (s *server) csrfGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		default:
+			if !sameOrigin(r) {
+				http.Error(w, "cross-origin request blocked", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// sameOrigin reports whether an unsafe request originates from the board itself.
+// It prefers the Origin header and falls back to Referer; a cross-site forged
+// POST always carries one of them with a foreign host, which is rejected. When
+// neither is present (non-browser clients; some same-origin legacy cases) the
+// request is allowed -- a browser can't be coerced into a header-less
+// cross-origin POST, so this isn't a bypass.
+func sameOrigin(r *http.Request) bool {
+	for _, h := range []string{r.Header.Get("Origin"), r.Header.Get("Referer")} {
+		if h == "" {
+			continue
+		}
+		u, err := url.Parse(h)
+		if err != nil || u.Host == "" {
+			return false
+		}
+		return u.Host == r.Host
+	}
+	return true
 }
 
 type server struct {

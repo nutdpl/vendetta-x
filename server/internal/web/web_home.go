@@ -97,16 +97,20 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 }
 
 // postOneliner appends to the wall and bounces back to the home wall anchor.
+// It requires a logged-in caller and attributes the entry to that account --
+// the wall is no longer an anonymous, spoofable endpoint where a form field
+// chose the author (which let anyone post as the sysop).
 func (s *server) postOneliner(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, "/login?next=/", http.StatusSeeOther)
+		return
+	}
 	if err := r.ParseForm(); err == nil {
-		author := strings.TrimSpace(r.FormValue("author"))
 		text := strings.TrimSpace(r.FormValue("text"))
-		if author == "" {
-			author = "anonymous"
-		}
 		if text != "" {
 			if err := s.st.AddOneliner(&store.Oneliner{
-				Author: author,
+				Author: u.Handle, // attributed to the authenticated caller, not a form field
 				Text:   text,
 				Posted: time.Now(),
 			}); err != nil {
