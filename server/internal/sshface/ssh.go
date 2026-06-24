@@ -16,9 +16,19 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"golang.org/x/crypto/ssh"
 )
+
+// recoverConn isolates a per-connection/per-channel goroutine: a panic in the
+// SSH library (malformed handshake, channel, or request from a hostile client)
+// is logged and contained, never taking down the listener or the other faces.
+func recoverConn(who, remoteAddr string) {
+	if r := recover(); r != nil {
+		log.Printf("sshface: %s panic (%s): %v\n%s", who, remoteAddr, r, debug.Stack())
+	}
+}
 
 // Serve listens for SSH connections on addr and, for every authenticated
 // interactive session, calls onSession with the session channel (an
@@ -35,6 +45,13 @@ func Serve(addr, hostKeyPath string, onSession func(ch io.ReadWriteCloser, remot
 	if err != nil {
 		return err
 	}
+	return serve(ln, hostKeyPath, onSession)
+}
+
+// ServeListener is Serve over an already-open listener, so the caller owns the
+// listener's lifetime (and can Close it to stop serving for graceful shutdown).
+// It closes ln when it returns.
+func ServeListener(ln net.Listener, hostKeyPath string, onSession func(ch io.ReadWriteCloser, remoteAddr string)) error {
 	return serve(ln, hostKeyPath, onSession)
 }
 
@@ -78,6 +95,8 @@ func serve(ln net.Listener, hostKeyPath string, onSession func(ch io.ReadWriteCl
 // disconnect -- it logs and returns, leaving other connections untouched.
 func handleConn(conn net.Conn, config *ssh.ServerConfig, onSession func(ch io.ReadWriteCloser, remoteAddr string)) {
 	remoteAddr := conn.RemoteAddr().String()
+	defer recoverConn("handleConn", remoteAddr)
+	defer conn.Close() // belt-and-suspenders: ensure the fd is reclaimed on any exit
 
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, config)
 	if err != nil {
@@ -106,6 +125,8 @@ func handleConn(conn net.Conn, config *ssh.ServerConfig, onSession func(ch io.Re
 // it invokes onSession with the channel. Each channel runs in its own
 // goroutine so one slow caller never blocks others.
 func handleChannel(newChannel ssh.NewChannel, remoteAddr string, onSession func(ch io.ReadWriteCloser, remoteAddr string)) {
+	defer recoverConn("handleChannel", remoteAddr)
+
 	channel, requests, err := newChannel.Accept()
 	if err != nil {
 		log.Printf("sshface: accept channel from %s failed: %v", remoteAddr, err)

@@ -81,6 +81,12 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// SQLite (even in WAL mode) allows only one writer at a time. An unbounded
+	// connection pool lets the three faces open several write connections that
+	// then race past busy_timeout and fail with "database is locked". Pinning the
+	// pool to a single connection serializes writers cleanly; WAL still lets that
+	// one writer proceed concurrently with readers on the same connection.
+	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -91,7 +97,13 @@ func Open(path string) (*Store, error) {
 	return s, nil
 }
 
-func (s *Store) Close() error { return s.db.Close() }
+// Close folds the WAL back into the main database file before closing, so a
+// clean shutdown never leaves an un-checkpointed WAL behind. A checkpoint error
+// is non-fatal (best effort) -- we still close the handle.
+func (s *Store) Close() error {
+	s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+	return s.db.Close()
+}
 
 // DB exposes the handle for the implementer (and advanced callers).
 func (s *Store) DB() *sql.DB { return s.db }

@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -135,8 +136,19 @@ func main() {
 		bbs.sem = make(chan struct{}, *maxNodes)
 	}
 
-	go bbs.serveTelnet(*telnetAddr)
-	go bbs.serveSSH(*sshAddr, *hostKey)
+	// Open the telnet + ssh listeners up front so shutdown can Close them to
+	// stop accepting new callers (a fatal bind error still aborts startup).
+	telnetLn, err := net.Listen("tcp", *telnetAddr)
+	if err != nil {
+		log.Fatalf("telnet listen: %v", err)
+	}
+	sshLn, err := net.Listen("tcp", *sshAddr)
+	if err != nil {
+		log.Fatalf("ssh listen: %v", err)
+	}
+	bbs.telnetLn, bbs.sshLn = telnetLn, sshLn
+	go bbs.serveTelnet(telnetLn)
+	go bbs.serveSSH(sshLn, *hostKey)
 
 	useTLS := *tlsCert != "" && *tlsKey != ""
 	webCfg := web.Config{
@@ -190,12 +202,20 @@ func main() {
 	<-ctx.Done()
 	stop() // restore default signal handling so a second signal force-quits
 	log.Printf("%s: shutting down...", boardName)
+
+	// Stop accepting new telnet/ssh callers (closing flips first so the accept
+	// loops treat the listener Close as a clean stop, not an error to back off).
+	bbs.closing.Store(true)
+	bbs.telnetLn.Close()
+	bbs.sshLn.Close()
+
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Printf("web shutdown: %v", err)
 	}
-	// Returning here runs the deferred st.Close(), checkpointing the database.
+	// Returning here runs the deferred st.Close(), checkpointing the database so
+	// the WAL is folded back before exit.
 }
 
 // ---- presence: the shared who's-online tracker ----------------------------
@@ -268,18 +288,35 @@ type board struct {
 	idle time.Duration
 
 	loginThrottle *throttle.Throttle // per-IP failed-login limiter
+
+	// listeners + closing flag let shutdown stop accepting new callers cleanly;
+	// closing distinguishes a deliberate listener Close from a transient accept
+	// error so the accept loop returns instead of hot-spinning or backing off.
+	telnetLn net.Listener
+	sshLn    net.Listener
+	closing  atomic.Bool
 }
 
-func (b *board) serveTelnet(addr string) {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatalf("telnet listen: %v", err)
-	}
+func (b *board) serveTelnet(ln net.Listener) {
+	var delay time.Duration
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
+			if b.closing.Load() {
+				return // deliberate shutdown: stop accepting
+			}
+			// Transient accept error (e.g. fd pressure): back off with a capped
+			// exponential delay instead of spinning the CPU at 100%.
+			if delay == 0 {
+				delay = 5 * time.Millisecond
+			} else if delay *= 2; delay > time.Second {
+				delay = time.Second
+			}
+			log.Printf("telnet: accept error: %v (retrying in %v)", err, delay)
+			time.Sleep(delay)
 			continue
 		}
+		delay = 0
 		if !b.acquire() {
 			// Board full: tell the caller and drop, rather than spawning an
 			// unbounded goroutine.
@@ -315,10 +352,12 @@ func (b *board) release() {
 	}
 }
 
-// serveSSH runs the SSH face: every interactive SSH session drives the exact
-// same board flow as telnet, over the encrypted channel (no telnet IAC).
-func (b *board) serveSSH(addr, hostKeyPath string) {
-	err := sshface.Serve(addr, hostKeyPath, func(ch io.ReadWriteCloser, remote string) {
+// serveSSH runs the SSH face over an already-open listener: every interactive
+// SSH session drives the exact same board flow as telnet, over the encrypted
+// channel (no telnet IAC). A clean shutdown (b.closing) suppresses the expected
+// "use of closed network connection" error from the closed listener.
+func (b *board) serveSSH(ln net.Listener, hostKeyPath string) {
+	err := sshface.ServeListener(ln, hostKeyPath, func(ch io.ReadWriteCloser, remote string) {
 		defer sessionRecover(remote)
 		if !b.acquire() {
 			ch.Write([]byte("\r\n  All nodes are busy right now. Try again shortly.\r\n"))
@@ -331,7 +370,7 @@ func (b *board) serveSSH(addr, hostKeyPath string) {
 		s.SetIdleTimeout(b.idle)
 		b.runBoard(s)
 	})
-	if err != nil {
+	if err != nil && !b.closing.Load() {
 		log.Printf("ssh: %v", err)
 	}
 }
