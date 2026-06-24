@@ -7,6 +7,7 @@ package gfiles
 import (
 	"database/sql"
 	"time"
+	"vendetta-x/server/internal/sanitize"
 )
 
 // GFile is one text document in the library.
@@ -157,7 +158,7 @@ func (s *Store) Get(id int64) (*GFile, error) {
 func (s *Store) Add(g *GFile) (int64, error) {
 	res, err := s.db.Exec(
 		`INSERT INTO gfiles (category, title, body, author, added) VALUES (?, ?, ?, ?, ?)`,
-		g.Category, g.Title, g.Body, g.Author, time.Now().Unix())
+		sanitize.Line(g.Category), sanitize.Line(g.Title), sanitize.Text(g.Body), sanitize.Line(g.Author), time.Now().Unix())
 	if err != nil {
 		return 0, err
 	}
@@ -169,7 +170,7 @@ func (s *Store) Add(g *GFile) (int64, error) {
 func (s *Store) Update(g *GFile) error {
 	_, err := s.db.Exec(
 		`UPDATE gfiles SET category = ?, title = ?, body = ?, author = ? WHERE id = ?`,
-		g.Category, g.Title, g.Body, g.Author, g.ID)
+		sanitize.Line(g.Category), sanitize.Line(g.Title), sanitize.Text(g.Body), sanitize.Line(g.Author), g.ID)
 	return err
 }
 

@@ -135,8 +135,19 @@ func (e *Editor) snapshot() []string {
 	return out
 }
 
+// Buffer bounds. O(1) checks on each keystroke keep one session's editor from
+// being pumped full of megabytes by a fast scripted client; comfortably above
+// any real message.
+const (
+	maxEditorLines   = 500
+	maxEditorLineLen = 1000
+)
+
 func (e *Editor) insertRune(r rune) {
 	line := e.lines[e.row]
+	if len(line) >= maxEditorLineLen {
+		return // line is full; drop the keystroke
+	}
 	if e.col > len(line) {
 		e.col = len(line)
 	}
@@ -149,6 +160,9 @@ func (e *Editor) insertRune(r rune) {
 }
 
 func (e *Editor) splitLine() {
+	if len(e.lines) >= maxEditorLines {
+		return // buffer is at its line cap; Enter is a no-op
+	}
 	line := e.lines[e.row]
 	if e.col > len(line) {
 		e.col = len(line)

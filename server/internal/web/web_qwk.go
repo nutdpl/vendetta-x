@@ -134,8 +134,12 @@ func (s *server) qwkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cap the upload at ~5MB of in-memory multipart form.
-	if err := r.ParseMultipartForm(5 << 20); err != nil {
+	// Hard-cap the request body before parsing so a client can't stream more
+	// than the limit (ParseMultipartForm alone only bounds what's kept in
+	// memory, not what's buffered to a temp file). Matches the file uploader.
+	const maxUpload = 5 << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
+	if err := r.ParseMultipartForm(maxUpload); err != nil {
 		log.Printf("web: qwk ParseMultipartForm: %v", err)
 		http.Redirect(w, r, "/qwk", http.StatusSeeOther)
 		return

@@ -7,6 +7,8 @@ package bulletin
 import (
 	"database/sql"
 	"time"
+
+	"vendetta-x/server/internal/sanitize"
 )
 
 // Bulletin is one short announcement shown to callers at logon.
@@ -120,7 +122,7 @@ func (s *Store) Add(b *Bulletin) (int64, error) {
 	}
 	res, err := s.db.Exec(
 		`INSERT INTO bulletins (title, body, author, posted) VALUES (?, ?, ?, ?)`,
-		b.Title, b.Body, b.Author, posted.Unix())
+		sanitize.Line(b.Title), sanitize.Text(b.Body), sanitize.Line(b.Author), posted.Unix())
 	if err != nil {
 		return 0, err
 	}
@@ -132,7 +134,7 @@ func (s *Store) Add(b *Bulletin) (int64, error) {
 func (s *Store) Update(b *Bulletin) error {
 	_, err := s.db.Exec(
 		`UPDATE bulletins SET title = ?, body = ?, author = ? WHERE id = ?`,
-		b.Title, b.Body, b.Author, b.ID)
+		sanitize.Line(b.Title), sanitize.Text(b.Body), sanitize.Line(b.Author), b.ID)
 	return err
 }
 
