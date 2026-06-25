@@ -25,10 +25,16 @@ CGO_ENABLED=0 go build .   # -> ./server (static, no libc)
 Flags: `-telnet`, `-ssh`, `-http`, `-db`, `-art`, `-hostkey`, `-tls-cert` /
 `-tls-key`, `-secure-cookies`, `-max-nodes`, `-idle`.
 
-Seed accounts: `nut` (SL 255, the sysop) and `phantom` (SL 10). Neither has a
-password until first login, where you set one. The **Sysop** message base is
-gated by the ACS string `s100`, so `phantom` is denied and `nut` gets in — the
-canonical access-control demo.
+Seed accounts: `sysop` (SL 255, the board administrator) plus `nut` and
+`phantom` (SL 10 demo users). None ships with a password; you set one on first
+login. Because `sysop` is privileged, its first password can only be set from
+the **console** — a loopback connection (run the BBS and log in locally, or
+tunnel in over SSH). A remote caller is refused, so the admin account can't be
+claimed by whoever connects first. Ordinary accounts can set their first
+password from anywhere.
+
+The **Sysop** message base is gated by the ACS string `s100`, so `phantom` is
+denied and `sysop` gets in — the canonical access-control demo.
 
 ## Layout
 

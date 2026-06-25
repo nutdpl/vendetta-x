@@ -442,18 +442,7 @@ func acsSubjectOf(u *store.User) acs.Subject {
 
 // isAdmin reports whether u has sysop-level access (SL >= 100 or the "A" flag).
 func isAdmin(u *store.User) bool {
-	if u == nil {
-		return false
-	}
-	if u.SL >= 100 {
-		return true
-	}
-	for _, f := range u.Flags {
-		if f == 'A' || f == 'a' {
-			return true
-		}
-	}
-	return false
+	return u != nil && u.Privileged()
 }
 
 // ---- shared helpers ----
@@ -477,6 +466,16 @@ func (s *server) clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// isLoopbackHost reports whether host (no port) is a loopback address -- the
+// request came from the machine running the board. It's the trust boundary for
+// enrolling a passwordless privileged account: only the console may set the
+// sysop's first password, so a remote caller can't claim it. Mirrors the
+// telnet/ssh face's guard.
+func isLoopbackHost(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // parseID parses a positive int64 path/query id. Returns false on garbage.

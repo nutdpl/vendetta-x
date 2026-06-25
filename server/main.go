@@ -17,8 +17,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"flag"
 	"io"
 	"log"
@@ -89,8 +87,6 @@ func main() {
 	if err := st.Seed(); err != nil {
 		log.Fatalf("store seed: %v", err)
 	}
-	// Shut the seed-account takeover hole before any listener opens.
-	secureSeedAccounts(st)
 
 	// feature data layers (each creates/seeds its own table over the shared DB).
 	mailStore, err := mail.New(st.DB())
@@ -472,56 +468,13 @@ func (b *board) runBoard(s *term.Session) {
 	s.Flush()
 }
 
-// isPrivileged reports whether u carries board-admin authority -- the same
-// notion the web sysop panel gates on (SL >= 100 or the 'A' flag). Such an
-// account must never be claimable by an anonymous caller.
-func isPrivileged(u *store.User) bool {
-	return u.SL >= 100 || strings.ContainsRune(u.Flags, 'A')
-}
-
-// secureSeedAccounts closes the seed-account takeover hole: any privileged
-// account still sitting with an empty password (the seeded sysop on a fresh DB,
-// or a legacy row) gets a random password generated and logged ONCE, so the hole
-// is shut before the listeners open. It only touches empty-password rows, so a
-// claimed/real password is never clobbered -- safe to run on every boot.
-func secureSeedAccounts(st *store.Store) {
-	users, err := st.Users()
-	if err != nil {
-		log.Printf("secureSeedAccounts: %v", err)
-		return
-	}
-	for i := range users {
-		u := &users[i]
-		if u.Password != "" || !isPrivileged(u) {
-			continue
-		}
-		pw := randPassword()
-		hash, err := auth.Hash(pw)
-		if err != nil {
-			log.Printf("secureSeedAccounts: hash %q: %v", u.Handle, err)
-			continue
-		}
-		if err := st.SetPassword(u.ID, hash); err != nil {
-			log.Printf("secureSeedAccounts: save %q: %v", u.Handle, err)
-			continue
-		}
-		log.Printf("SECURITY: privileged account %q had no password; set a random one:\n"+
-			"           %s\n"+
-			"           Log in and change it now, before exposing the board.", u.Handle, pw)
-	}
-}
-
-// randPassword returns a random, policy-valid password for one-time admin
-// enrollment. base64url of 12 random bytes is 16 chars -- comfortably above the
-// minimum and drawn from crypto/rand.
-func randPassword() string {
-	var b [12]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		// crypto/rand failing is catastrophic; fail closed with an unusable value
-		// rather than a guessable one.
-		return base64.RawURLEncoding.EncodeToString([]byte("UNAVAILABLE-set-via-db"))
-	}
-	return base64.RawURLEncoding.EncodeToString(b[:])
+// isLoopbackHost reports whether host (already stripped of any port) is a
+// loopback address -- i.e. the connection came from the machine running the
+// board (the "console"). It's the trust boundary for enrolling a passwordless
+// privileged account: only the console may set the sysop's first password.
+func isLoopbackHost(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // subjectOf maps a user onto an ACS subject for access checks.
@@ -617,17 +570,19 @@ func (b *board) login(s *term.Session) *store.User {
 			continue
 		}
 		if u.Password == "" {
-			// A privileged account must never be claimable by whoever connects
-			// first -- that's a board takeover. Boot-time hardening gives seed
-			// admins a random password (logged once for the operator); this guard
-			// is the invariant for any other path that could leave one empty.
-			if isPrivileged(u) {
+			// A privileged account (the seeded sysop) is enrolled on first login,
+			// but only from the console -- a loopback connection. Letting any
+			// remote caller claim a passwordless admin is a board takeover, so a
+			// remote caller is refused and pointed at the console. Run the BBS and
+			// log in locally (or tunnel in over SSH) to set the sysop password.
+			if u.Privileged() && !isLoopbackHost(ip) {
 				b.loginThrottle.Fail(ip)
-				s.Print("\x1b[1;31m  That account is reserved. The sysop sets its password from the console.\x1b[0m\r\n")
+				s.Print("\x1b[1;31m  That account is reserved. Set its password from the console (a local login).\x1b[0m\r\n")
 				s.Pause()
 				return nil
 			}
-			// Ordinary account without a password (seed/legacy): set one now.
+			// First login for a passwordless account (the console sysop, or an
+			// ordinary seed/legacy user): set a password now.
 			s.Print("\x1b[1;33m  No password on file -- set one now.\x1b[0m\r\n")
 			if b.setPassword(s, u) {
 				s.Print("\x1b[1;32m  Welcome, " + u.Handle + "!\x1b[0m\r\n")

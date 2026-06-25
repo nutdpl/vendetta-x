@@ -31,6 +31,16 @@ type User struct {
 	Flags string
 }
 
+// Privileged reports whether u carries board-admin authority: SL >= 100 or the
+// "A" (sysop) flag. Every face gates sysop powers on this, and it's the
+// invariant behind console-only enrollment of a passwordless admin -- a
+// privileged account that any remote caller could claim is a board takeover.
+// The flag check is case-insensitive, matching how internal/acs evaluates
+// flags, so an "a"-flagged admin is recognized (and protected) too.
+func (u *User) Privileged() bool {
+	return u.SL >= 100 || strings.ContainsAny(u.Flags, "Aa")
+}
+
 type Board struct {
 	ID                   int64
 	Tag, Name, Desc      string
@@ -329,13 +339,18 @@ func (s *Store) Seed() error {
 		}
 	}
 
-	// sample users
+	// sample users. "sysop" is the default board administrator (SL 255, flag A)
+	// and ships WITHOUT a password: the operator sets it on first login, from the
+	// console (a loopback connection) -- see the login face. It's generic on
+	// purpose, so anyone who installs Vendetta/X gets a usable sysop login out of
+	// the box instead of a personal handle. nut/phantom are ordinary demo users.
 	now := time.Now()
 	users := []struct {
 		handle, real, group, tagline, flags string
 		sl                                  int
 	}{
-		{"nut", "nut", "Staff", "Running the show.", "A", 255},
+		{"sysop", "Sysop", "Staff", "Running the show.", "A", 255},
+		{"nut", "nut", "Users", "Long-time caller.", "", 10},
 		{"phantom", "Phantom", "Users", "Lurking in the static.", "", 10},
 	}
 	for _, u := range users {

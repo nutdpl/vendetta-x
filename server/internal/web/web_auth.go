@@ -171,8 +171,15 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// An account with no password yet (seeded/legacy) sets one on first login,
-	// matching the telnet face.
+	// matching the telnet face. A privileged account (the seeded sysop) may only
+	// be enrolled from the console -- a loopback request -- so a remote web caller
+	// can't claim a passwordless admin and take over the board.
 	if u.Password == "" {
+		if u.Privileged() && !isLoopbackHost(ip) {
+			s.loginThrottle.Fail(ip)
+			s.renderAuth(w, r, "login", "That account is reserved. Set its password from the console (a local login).", next, handle)
+			return
+		}
 		hash, herr := auth.Hash(password)
 		if herr != nil {
 			s.renderAuth(w, r, "login", "Could not set password.", next, handle)

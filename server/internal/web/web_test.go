@@ -26,14 +26,25 @@ func newTestServer(t *testing.T) http.Handler {
 }
 
 // do issues a request through the handler with any cookies attached, returning
-// the recorder (whose cookies callers thread into the next request).
+// the recorder (whose cookies callers thread into the next request). The remote
+// address is httptest's default (192.0.2.1, non-loopback) -- i.e. a remote
+// caller, not the console.
 func do(h http.Handler, method, path, body string, cookies []*http.Cookie) *httptest.ResponseRecorder {
+	return doFrom(h, method, path, body, cookies, "")
+}
+
+// doFrom is do with an explicit remote address, so tests can model a console
+// (loopback) caller -- the trust boundary the sysop enrollment guard keys on.
+func doFrom(h http.Handler, method, path, body string, cookies []*http.Cookie, remote string) *httptest.ResponseRecorder {
 	var r *http.Request
 	if body != "" {
 		r = httptest.NewRequest(method, path, strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	} else {
 		r = httptest.NewRequest(method, path, nil)
+	}
+	if remote != "" {
+		r.RemoteAddr = remote
 	}
 	for _, c := range cookies {
 		r.AddCookie(c)
@@ -200,10 +211,22 @@ func TestSysopGating(t *testing.T) {
 		t.Fatalf("non-admin set-level: status = %d, want 403", rec.Code)
 	}
 
-	// 3) the seeded admin (nut, SL 255) gets in. First login sets a password.
-	rec = do(h, http.MethodPost, "/login", "handle=nut&password=secretpw", nil)
+	// 3) the passwordless sysop can't be enrolled by a REMOTE caller -- the login
+	// refuses it (re-renders the form, no redirect) rather than letting a remote
+	// visitor claim the admin account.
+	rec = do(h, http.MethodPost, "/login", "handle=sysop&password=secretpw", nil)
+	if rec.Code == http.StatusSeeOther {
+		t.Fatal("remote caller was allowed to enroll the passwordless sysop")
+	}
+	if !strings.Contains(rec.Body.String(), "reserved") {
+		t.Fatalf("remote sysop enrollment: body missing the reserved notice:\n%s", rec.Body.String())
+	}
+
+	// 4) the seeded admin (sysop, SL 255) enrolls from the console (a loopback
+	// request) -- first login sets the password -- and then reaches /sysop.
+	rec = doFrom(h, http.MethodPost, "/login", "handle=sysop&password=secretpw", nil, "127.0.0.1:1234")
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("admin login: status = %d, want 303", rec.Code)
+		t.Fatalf("admin console login: status = %d, want 303", rec.Code)
 	}
 	danCookies := rec.Result().Cookies()
 	rec = do(h, http.MethodGet, "/sysop", "", danCookies)

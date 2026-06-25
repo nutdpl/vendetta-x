@@ -59,6 +59,13 @@ built, but it hasn't yet had a real-world shakedown.
 - TLS for the web face (`-tls-cert`/`-tls-key`, or behind a terminating proxy)
   with `Secure` session cookies; HTTP read/header/write/idle timeouts.
 - Per-IP **login throttling** on web and telnet; reserved/validated handles.
+- A **default `sysop` account** that ships without a password: the operator sets
+  it on first login. Because the account is privileged, that first password can
+  only be set from the **console** (a loopback connection) -- a remote caller is
+  refused, so a passwordless admin can't be claimed by whoever connects first.
+  The guard is enforced identically on the telnet/ssh and web faces. (Replaces
+  the personal `nut` seed admin, so a fresh install has a generic, usable sysop
+  login out of the box.)
 - Concurrent-session cap (`-max-nodes`) and an idle-session watchdog (`-idle`)
   over telnet/ssh; a telnet "press ESC twice to connect" gate that drops bots.
 - Control-byte **sanitization** of user text so ANSI escapes can't reach other

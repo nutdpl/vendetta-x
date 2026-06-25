@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"vendetta-x/server/internal/auth"
 	"vendetta-x/server/internal/bbslist"
 	"vendetta-x/server/internal/chat"
 	"vendetta-x/server/internal/door"
@@ -79,12 +80,19 @@ type session struct {
 }
 
 func newSession(t *testing.T, b *board) *session {
+	return newSessionFrom(t, b, "test:0")
+}
+
+// newSessionFrom is newSession with a chosen remote address, so tests can model
+// a console (loopback) caller vs. a remote one -- the trust boundary the sysop
+// enrollment guard keys on.
+func newSessionFrom(t *testing.T, b *board, remote string) *session {
 	t.Helper()
 	serverEnd, clientEnd := net.Pipe()
 	se := &session{t: t, client: clientEnd, done: make(chan struct{})}
 	go func() {
 		defer close(se.done)
-		s := term.NewRW(serverEnd, "test:0")
+		s := term.NewRW(serverEnd, remote)
 		b.RunBoard(s)
 		serverEnd.Close()
 	}()
@@ -305,34 +313,85 @@ func TestLoginPasswordlessUserAndUserList(t *testing.T) {
 	se.waitDone()
 }
 
-// TestSecureSeedAccountsClaimsAdmin verifies the seed-takeover hole is shut:
-// the seeded sysop "nut" (SL 255, flag A) starts passwordless, and after
-// secureSeedAccounts runs it has a real password (so it can no longer be claimed
-// by whoever connects first), while a non-privileged seed account is untouched.
-func TestSecureSeedAccountsClaimsAdmin(t *testing.T) {
+// TestSysopSeededPasswordless documents the default account model: the sysop
+// account ships privileged (SL 255, flag A) and WITHOUT a password, so the
+// operator enrolls it on first login. nut/phantom are ordinary, non-privileged
+// demo users.
+func TestSysopSeededPasswordless(t *testing.T) {
 	b := newTestBoard(t)
 
-	nut, err := b.st.UserByHandle("nut")
-	if err != nil || nut == nil {
-		t.Fatalf("seed nut missing: %v", err)
+	sysop, err := b.st.UserByHandle("sysop")
+	if err != nil || sysop == nil {
+		t.Fatalf("seed sysop missing: %v", err)
 	}
-	if nut.Password != "" {
-		t.Fatalf("expected nut seeded passwordless, got a password already")
+	if sysop.Password != "" {
+		t.Fatal("expected sysop seeded passwordless")
 	}
-	if !isPrivileged(nut) {
-		t.Fatalf("nut should be privileged (SL %d flags %q)", nut.SL, nut.Flags)
+	if !sysop.Privileged() {
+		t.Fatalf("sysop should be privileged (SL %d flags %q)", sysop.SL, sysop.Flags)
 	}
+	for _, h := range []string{"nut", "phantom"} {
+		u, _ := b.st.UserByHandle(h)
+		if u == nil || u.Privileged() {
+			t.Fatalf("%s should be a non-privileged demo user, got %+v", h, u)
+		}
+	}
+}
 
-	secureSeedAccounts(b.st)
+// TestSysopRemoteEnrollmentRefused proves the takeover hole stays shut: a remote
+// (non-loopback) caller cannot claim the passwordless sysop account. The login
+// refuses it and the account is left untouched, so it can't be set from afar.
+func TestSysopRemoteEnrollmentRefused(t *testing.T) {
+	b := newTestBoard(t)
 
-	nut, _ = b.st.UserByHandle("nut")
-	if nut.Password == "" {
-		t.Fatal("secureSeedAccounts left the privileged account claimable (empty password)")
+	se := newSessionFrom(t, b, "203.0.113.7:5000") // TEST-NET-3, non-loopback
+	se.enter()
+	se.expect("Login")
+	se.send("l")
+	se.expect("Handle:")
+	se.send("sysop\r")
+	se.expect("reserved") // "That account is reserved. Set its password from the console..."
+	se.send(" ")          // dismiss the Pause()
+	se.send("g")          // back at the matrix -- Goodbye
+	se.drain()
+	se.waitDone()
+
+	if u, _ := b.st.UserByHandle("sysop"); u == nil || u.Password != "" {
+		t.Fatalf("remote caller managed to enroll the sysop account: %+v", u)
 	}
-	// A non-privileged passwordless account (phantom) is intentionally left
-	// alone -- it's safe to claim on first login.
-	if ph, _ := b.st.UserByHandle("phantom"); ph == nil || isPrivileged(ph) || ph.Password != "" {
-		t.Fatalf("phantom should remain a non-privileged passwordless account, got %+v", ph)
+}
+
+// TestSysopConsoleEnrollment proves the intended first-run flow: a console
+// (loopback) caller logs in as the passwordless sysop and sets the password,
+// after which the account is enrolled and reachable.
+func TestSysopConsoleEnrollment(t *testing.T) {
+	b := newTestBoard(t)
+
+	se := newSessionFrom(t, b, "127.0.0.1:54321") // loopback == the console
+	se.enter()
+	se.expect("Login")
+	se.send("l")
+	se.expect("Handle:")
+	se.send("sysop\r")
+	se.expect("set one now")
+	se.expect("Password:")
+	se.send("sysoppass\r")
+	se.expect("Verify:")
+	se.send("sysoppass\r")
+	se.expect("Welcome, sysop!")
+	se.expect("Quick logon?")
+	se.send("y")
+	se.expect("main menu")
+	se.send("g")
+	se.drain()
+	se.waitDone()
+
+	u, _ := b.st.UserByHandle("sysop")
+	if u == nil || u.Password == "" {
+		t.Fatalf("console enrollment did not set a sysop password: %+v", u)
+	}
+	if !auth.Verify(u.Password, "sysoppass") {
+		t.Fatal("stored sysop password does not verify against what was set")
 	}
 }
 
