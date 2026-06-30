@@ -200,6 +200,62 @@ def accent_blob(canvas, cx, cy, n, color, rng=None):
             canvas.set(x, y, LIGHT, color)
 
 
+MIDDOT = bytes([0xFA]).decode("cp437")
+
+
+def hue_magenta_red(t):
+    return MAGENTA if t < 0.5 else (BMAGENTA if t < 0.8 else BRED)
+
+
+def build_chrome(title, font_file, font_name, subtitle, cols=80,
+                  top_bar=True, blob=True, rng=None):
+    """Compose the board's standard screen header: an eroded gradient bar,
+    the centered TDF wordmark with an accent blob, and a dithered divider
+    carrying the board name + subtitle -- the loginscreen's full treatment,
+    reusable for any menu screen instead of a bare logo + plain rule.
+
+    Returns (lines, rows_consumed) where `lines` is ready to splice into a
+    .tpl `out` list right after "|CL", and `rows_consumed` is how many
+    terminal rows they occupy counting the |CL line's own row-advance (so a
+    caller can place the next thing at row `rows_consumed + 1` for a
+    one-row gap, with no further off-by-one math needed).
+    """
+    rng = rng or random
+    c = Canvas(cols, 4)
+    y0 = 0
+    if top_bar:
+        textured_bar(c, 0, 2, "bottom", hue_magenta_red, rng=rng)
+        y0 = 3  # 2-row bar + 1 blank gap
+
+    tmp = Canvas(200, 20)
+    logo_w, logo_h = tmp.paste_tdf_text(0, 0, font_file, font_name, title)
+    lx = max(0, (cols - logo_w) // 2)
+    for ry in range(logo_h):
+        for rx in range(logo_w):
+            cell = tmp.get(rx, ry)
+            if cell and cell.cp != 0x20:
+                c.set(lx + rx, y0 + ry, cell.cp, cell.fg, cell.bg)
+    if blob:
+        accent_blob(c, min(cols - 4, lx + logo_w - 5), y0, 10, BCYAN, rng=rng)
+
+    div_y = y0 + logo_h
+    dithered_divider(c, div_y, 4, cols - 4, BMAGENTA, accent_color=BCYAN, solid=0.7, rng=rng)
+
+    lines = c.to_tpl_rows()[:div_y + 1]
+    lines.append("|05──── |07|BN |05%s |07%s |05────" % (MIDDOT, subtitle))
+    # +1: the |CL line's own \n consumes a row before this content starts.
+    return lines, div_y + 2 + 1
+
+
+def bottom_bar_lines(cols=80, rng=None):
+    """A 2-row eroded gradient bar (mirrored: erodes its top edge), ready to
+    append as the last lines of a screen."""
+    rng = rng or random
+    c = Canvas(cols, 2)
+    textured_bar(c, 0, 2, "top", hue_magenta_red, rng=rng)
+    return c.to_tpl_rows()
+
+
 def dithered_divider(canvas, y, x0, x1, color, accent_color=None, rng=None, solid=0.85):
     """A horizontal rule that occasionally drops to a shade character instead
     of a clean unbroken line -- a 'circuit trace' rather than a ruled box."""
