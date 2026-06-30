@@ -110,6 +110,30 @@ class Canvas:
             cur = None
         return bytes(out)
 
+    def to_tpl_rows(self):
+        """Render each row as a readable .tpl-format string: literal `\\e` for
+        ESC and proper cp437-decoded glyphs, ready to feed through tpl2ans.py
+        alongside hand-written pipe-code lines. Returns a list of strings (one
+        per row, no trailing newline) so a caller can splice in raw_line rows
+        that bypass the cell grid (e.g. |{...} lightbar markers)."""
+        rows_out = []
+        for y, row in enumerate(self.grid):
+            if y in self.raw_lines:
+                rows_out.append(self.raw_lines[y])
+                continue
+            cur = None
+            parts = []
+            for c in row:
+                key = (c.fg, c.bg)
+                if key != cur:
+                    parts.append("\\e[0;%d;%dm" % (
+                        30 + c.fg if c.fg < 8 else 90 + (c.fg - 8),
+                        40 + c.bg if c.bg < 8 else 100 + (c.bg - 8)))
+                    cur = key
+                parts.append(bytes([c.cp]).decode("cp437"))
+            rows_out.append("".join(parts).rstrip())
+        return rows_out
+
 
 def textured_bar(canvas, y0, height, erode_side, hue_fn, rng=None, speckle=0.06):
     """A solid `height`-row bar across the canvas width, with the named edge
