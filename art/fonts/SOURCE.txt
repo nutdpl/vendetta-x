@@ -1,0 +1,14 @@
+TheDraw color fonts (.TDF) used by the art pipeline (tools/mk*.py + logo_compose.py).
+
+CYBRCRME.TDF -- contains the "Cybercrime" font, used for the VENDETTA/X
+wordmark across the board's art. TheDraw fonts are scene-distributed font
+files made by ANSI artists specifically for reuse by other artists and BBS
+sysops -- that's their entire purpose, the same way the board's own ACS/menu
+conventions borrow the Iniquity scene's. Sourced from the TheDraw Fonts
+Collection preserved at roysac.com (a long-running ANSI-art preservation
+archive); original font artist/group unattributed in the file itself beyond
+the in-font name "Cybercrime".
+
+Pull more fonts the same way if a future screen wants a different face:
+tools/curate_tdf.py scores a directory of .TDF files for "organic ACiD-style"
+character against a target string and writes contact-sheet renders to review.
