@@ -152,7 +152,7 @@ func TestTheme(t *testing.T) {
 	eq(t, "|T1 theme", r(t, "|T1"), "\x1b[1;30;40m")
 }
 
-func TestRenderFileSysinfo(t *testing.T) {
+func TestRenderFileWelcome(t *testing.T) {
 	var buf bytes.Buffer
 	ctx := &Ctx{Tokens: map[string]string{
 		"UH": "nut",
@@ -161,17 +161,20 @@ func TestRenderFileSysinfo(t *testing.T) {
 		"UL": "Earth",
 		"UC": "42",
 	}}
-	if err := RenderFile(&buf, "/home/user/vendetta-x/art/sysinfo.pp", ctx); err != nil {
+	// art/welcome.pp exercises the same UH/BN/VR/UL/UC tokens sysinfo.pp used
+	// to (before it was dropped as dead art -- nothing ever rendered it; the
+	// real sysop/system-info screens are hand-printed Go, not a .pp file).
+	if err := RenderFile(&buf, "../../../art/welcome.pp", ctx); err != nil {
 		t.Fatalf("RenderFile error: %v", err)
 	}
 	out := buf.String()
 	for _, want := range []string{"nut", "0.1", "Earth", "42"} {
 		if !bytes.Contains([]byte(out), []byte(want)) {
-			t.Errorf("sysinfo output missing %q", want)
+			t.Errorf("welcome output missing %q", want)
 		}
 	}
 	// LF should have been normalized to CRLF.
 	if bytes.Contains([]byte(out), []byte("\n")) && !bytes.Contains([]byte(out), []byte("\r\n")) {
-		t.Errorf("sysinfo output not CRLF-normalized")
+		t.Errorf("welcome output not CRLF-normalized")
 	}
 }

@@ -1253,7 +1253,7 @@ func (b *board) siteName() string { return b.st.Setting("board.name", boardName)
 // used across every list/info screen, for one consistent look.
 func (b *board) screenHeader(s *term.Session, title string) {
 	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m %s\x1b[0m\r\n\r\n", b.siteName(), title)
+	s.Printf("\x1b[1;35m  %s \x1b[1;30m\xfa\x1b[0;36m %s\x1b[0m\r\n\r\n", b.siteName(), title)
 }
 
 func (b *board) oneliners(s *term.Session, user *store.User) {
