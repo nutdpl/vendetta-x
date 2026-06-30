@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Build the full main menu screen: a composed TheDraw logo over the board's
+"""Build the full main menu screen: the board's real TDF wordmark over the
 whole command set, laid out in two lightbar columns. Emits art/mainmenu.tpl
-(readable source) and compiles it to art/mainmenu.pp (the board screen) via
-tpl2ans. The option hotkeys must match the KEY rows in data/MAIN.MNU.
+(readable source) and compiles it to art/mainmenu.pp via tpl2ans. The option
+hotkeys must match the KEY rows in data/MAIN.MNU.
 
-    python3 tools/mkmainmenu.py /path/to/phiber2.tdf
+    python3 tools/mkmainmenu.py
 """
 import os
-import re
-import subprocess
 import sys
-import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.dirname(os.path.dirname(HERE))  # legacy/tools -> repo root
+sys.path.insert(0, HERE)
+from dither import Canvas  # noqa: E402
 
-SPEC = "V:0:0,E:0:0,N:0:0,D:0:0,E:0:0,T:0:0,T:0:0,A:0:0"
+import subprocess  # noqa: E402
+import tempfile  # noqa: E402
+
+FONT_FILE = os.path.join(ROOT, "art", "fonts", "CYBRCRME.TDF")
+COLS = 80
+MIDDOT = bytes([0xFA]).decode("cp437")
 
 # (hotkey, label) -- hotkeys mirror data/MAIN.MNU. Two columns, top-to-bottom.
 LEFT = [
@@ -31,32 +35,22 @@ RIGHT = [
 LCOL, RCOL = 8, 44
 
 
-def compose_logo(fontfile):
-    tmp = tempfile.NamedTemporaryFile(suffix="-utf8.ans", delete=False).name
-    subprocess.check_call([sys.executable, os.path.join(HERE, "logo_compose.py"),
-                           fontfile, "0", tmp, SPEC])
-    with open(tmp, "r", encoding="utf-8") as f:
-        lines = [ln.rstrip("\n") for ln in f]
-    os.unlink(tmp)
-    return [ln for ln in lines if ln.strip() != ""]
-
-
-def vwidth(line):
-    return len(re.sub(r"\x1b\[[0-9;]*m", "", line))
-
-
 def main():
-    if len(sys.argv) < 2:
-        sys.exit("usage: mkmainmenu.py <font.tdf>")
-    logo = compose_logo(sys.argv[1])
-    h = len(logo)
-    indent = " " * max(0, (80 - max((vwidth(l) for l in logo), default=0)) // 2)
+    tmp = Canvas(200, 20)
+    logo_w, h = tmp.paste_tdf_text(0, 0, FONT_FILE, "Cybercrime", "VENDETTA/X")
+    indent = " " * max(0, (COLS - logo_w) // 2)
+
+    c = Canvas(COLS, h)
+    for y in range(h):
+        for x in range(logo_w):
+            cell = tmp.get(x, y)
+            if cell and cell.cp != 0x20:
+                c.set(x, y, cell.cp, cell.fg, cell.bg)
+    logo_rows = c.to_tpl_rows()
 
     out = ["|CL"]
-    for ln in logo:
-        out.append(indent + ln.replace("\x1b", "\\e"))
-    out.append(indent + "|08─── |07|BN |08─ "
-                        "|07main menu |08───")
+    out += [indent + ln if ln else ln for ln in logo_rows]
+    out.append(indent + "|05──── |07|BN |05%s |07main menu |05────" % MIDDOT)
 
     # two columns of options; clamp so the taller column fits the 25-row screen
     rows_per = max(len(LEFT), len(RIGHT))
