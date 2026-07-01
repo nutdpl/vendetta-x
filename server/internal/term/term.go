@@ -75,6 +75,11 @@ type Session struct {
 	// readMu guarantees the two never touch the buffered reader / pending state
 	// concurrently, so leaving chat costs at most one key, never a data race.
 	readMu sync.Mutex
+
+	// telnet is true for the telnet transport, false for SSH. It only matters
+	// for binary file transfer (Transfer): a telnet byte stream must escape
+	// 0xFF as IAC IAC, while an SSH channel is already 8-bit clean.
+	telnet bool
 }
 
 type keyEvent struct {
@@ -91,6 +96,7 @@ func New(conn net.Conn) *Session {
 		br:     bufio.NewReaderSize(conn, 1024),
 		bw:     bufio.NewWriterSize(conn, 4096),
 		done:   make(chan struct{}),
+		telnet: true,
 	}
 }
 

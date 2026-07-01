@@ -24,6 +24,9 @@ type User struct {
 	Tagline, Group      string
 	SL, DSL             int
 	Posts, Calls        int
+	// Upload/download accounting for the ratio economy.
+	Uploads, Downloads  int
+	UlBytes, DlBytes    int64
 	FirstCall, LastCall time.Time
 	// Password is the bcrypt hash (set via SetPassword); never the plaintext.
 	Password string
@@ -240,6 +243,10 @@ CREATE TABLE IF NOT EXISTS settings (
 		`ALTER TABLE boards ADD COLUMN post_acs TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE file_areas ADD COLUMN acs TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE files ADD COLUMN content BLOB`,
+		`ALTER TABLE users ADD COLUMN uploads INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN downloads INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN ul_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN dl_bytes INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, stmt := range addColumns {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -406,19 +413,40 @@ func (s *Store) Seed() error {
 
 // ---- users -----------------------------------------------------------------
 
-const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags`
+const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags, uploads, downloads, ul_bytes, dl_bytes`
 
 func scanUser(sc interface{ Scan(...any) error }) (*User, error) {
 	var u User
 	var first, last int64
 	if err := sc.Scan(&u.ID, &u.Handle, &u.RealName, &u.Email, &u.Location,
 		&u.Tagline, &u.Group, &u.SL, &u.DSL, &u.Posts, &u.Calls, &first, &last,
-		&u.Password, &u.Flags); err != nil {
+		&u.Password, &u.Flags, &u.Uploads, &u.Downloads, &u.UlBytes, &u.DlBytes); err != nil {
 		return nil, err
 	}
 	u.FirstCall = fromUnix(first)
 	u.LastCall = fromUnix(last)
 	return &u, nil
+}
+
+// AddUploadBytes credits a user's upload accounting after a completed upload.
+func (s *Store) AddUploadBytes(userID, n int64) error {
+	_, err := s.db.Exec(
+		`UPDATE users SET uploads = uploads + 1, ul_bytes = ul_bytes + ? WHERE id = ?`, n, userID)
+	if err != nil {
+		return fmt.Errorf("store: add upload bytes: %w", err)
+	}
+	return nil
+}
+
+// AddDownloadBytes credits a user's download accounting after a completed
+// download.
+func (s *Store) AddDownloadBytes(userID, n int64) error {
+	_, err := s.db.Exec(
+		`UPDATE users SET downloads = downloads + 1, dl_bytes = dl_bytes + ? WHERE id = ?`, n, userID)
+	if err != nil {
+		return fmt.Errorf("store: add download bytes: %w", err)
+	}
+	return nil
 }
 
 // UserByHandle returns the user (case-insensitive), or nil,nil if not found.

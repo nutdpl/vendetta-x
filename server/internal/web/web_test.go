@@ -245,29 +245,29 @@ func TestSysopGating(t *testing.T) {
 func TestDownloadTokens(t *testing.T) {
 	s := &server{dlSecret: []byte("0123456789abcdef0123456789abcdef")}
 
-	link := s.signDownload(42, time.Minute)
+	link := s.signDownload(42, 9, time.Minute)
 	tok := strings.TrimPrefix(link, "/dl/")
-	if id, ok := s.verifyDownload(tok); !ok || id != 42 {
-		t.Fatalf("valid token: id=%d ok=%v, want 42,true", id, ok)
+	if id, uid, ok := s.verifyDownload(tok); !ok || id != 42 || uid != 9 {
+		t.Fatalf("valid token: id=%d uid=%d ok=%v, want 42,9,true", id, uid, ok)
 	}
 
 	// tamper a middle byte of the signature (a meaningful 6-bit change).
-	if _, ok := s.verifyDownload(mutate(tok)); ok {
+	if _, _, ok := s.verifyDownload(mutate(tok)); ok {
 		t.Fatal("tampered token verified")
 	}
 
 	// expired (signed in the past).
-	if _, ok := s.verifyDownload(strings.TrimPrefix(s.signDownload(7, -time.Minute), "/dl/")); ok {
+	if _, _, ok := s.verifyDownload(strings.TrimPrefix(s.signDownload(7, 0, -time.Minute), "/dl/")); ok {
 		t.Fatal("expired token verified")
 	}
 
 	// a different secret must not validate our token.
 	other := &server{dlSecret: []byte("ffffffffffffffffffffffffffffffff")}
-	if _, ok := other.verifyDownload(tok); ok {
+	if _, _, ok := other.verifyDownload(tok); ok {
 		t.Fatal("token verified under the wrong secret")
 	}
 
-	if _, ok := s.verifyDownload("not-a-real-token"); ok {
+	if _, _, ok := s.verifyDownload("not-a-real-token"); ok {
 		t.Fatal("garbage token verified")
 	}
 }

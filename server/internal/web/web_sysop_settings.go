@@ -33,6 +33,9 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		NewUserSL    int
 		NewUserDSL   int
 		NewUserGroup string
+		RatioOn      bool
+		RatioBytes   int
+		RatioFreeMB  int
 		Features     []featureToggle
 		Saved        bool
 	}{
@@ -43,6 +46,9 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		NewUserSL:    s.st.SettingInt("newuser.sl", 10),
 		NewUserDSL:   s.st.SettingInt("newuser.dsl", 10),
 		NewUserGroup: s.st.Setting("newuser.group", "Users"),
+		RatioOn:      s.st.RatioEnabled(),
+		RatioBytes:   s.st.RatioBytes(),
+		RatioFreeMB:  int(s.st.RatioFreeBytes() >> 20),
 		Features:     toggles,
 		Saved:        r.URL.Query().Get("ok") != "",
 	})
@@ -66,6 +72,14 @@ func (s *server) sysopSettingsSave(w http.ResponseWriter, r *http.Request) {
 	set("newuser.sl", strconv.Itoa(clampLevel(r.FormValue("newuser_sl"), 10)))
 	set("newuser.dsl", strconv.Itoa(clampLevel(r.FormValue("newuser_dsl"), 10)))
 	set("newuser.group", strings.TrimSpace(r.FormValue("newuser_group")))
+	// File ratio economy: on/off + the ratio and free allowance.
+	ratioOn := "0"
+	if r.FormValue("ratio_enabled") != "" {
+		ratioOn = "1"
+	}
+	set("files.ratio.enabled", ratioOn)
+	set("files.ratio.bytes", strconv.Itoa(clampRange(r.FormValue("ratio_bytes"), 3, 1, 100)))
+	set("files.ratio.free_mb", strconv.Itoa(clampRange(r.FormValue("ratio_free_mb"), 5, 0, 100000)))
 	// Each feature: a present checkbox (value "1") means on, absent means off.
 	for _, f := range store.Features {
 		on := "0"

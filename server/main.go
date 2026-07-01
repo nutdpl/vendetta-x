@@ -1100,7 +1100,7 @@ func (b *board) fileMenu(s *term.Session, tok map[string]string, user *store.Use
 		}
 		switch lc(key) {
 		case 'l':
-			b.listFiles(s, current)
+			b.listFiles(s, user, current)
 		case 'n':
 			b.newFiles(s, user)
 		case 'a':
@@ -1179,30 +1179,54 @@ func (b *board) pickFileArea(s *term.Session, user *store.User) *store.FileArea 
 
 // listFiles prints an area's files the Iniquity way (lfDescLn): Num / Filename /
 // Size / DLs / Description. Downloads happen on the web face (signed links).
-func (b *board) listFiles(s *term.Session, area *store.FileArea) {
-	files, err := b.st.Files(area.ID)
-	if err != nil {
-		s.Notice("Could not load files.")
-		return
-	}
+func (b *board) listFiles(s *term.Session, user *store.User, area *store.FileArea) {
+	for {
+		files, err := b.st.Files(area.ID)
+		if err != nil {
+			s.Notice("Could not load files.")
+			return
+		}
 
-	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m %s\x1b[0m\r\n", boardName, area.Name)
-	if area.Desc != "" {
-		s.Printf("\x1b[1;30m  %s\x1b[0m\r\n", area.Desc)
-	}
-	s.Print("\r\n\x1b[1;30m   #  \x1b[0;37mFilename             \x1b[1;30m   Size  DLs  Description\x1b[0m\r\n")
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
+		s.Print("\x1b[0m\x1b[2J\x1b[H")
+		s.Printf("\x1b[1;35m  %s \x1b[1;30m\xfa\x1b[0;36m %s\x1b[0m\r\n", boardName, area.Name)
+		if area.Desc != "" {
+			s.Printf("\x1b[1;30m  %s\x1b[0m\r\n", area.Desc)
+		}
+		s.Print("\r\n\x1b[1;35m   #  \x1b[0;36mFilename             \x1b[1;30m   Size  DLs  Description\x1b[0m\r\n")
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 
-	if len(files) == 0 {
-		s.Print("\x1b[0;37m  No files in this area yet.\x1b[0m\r\n")
+		if len(files) == 0 {
+			s.Print("\x1b[0;37m  No files in this area yet.\x1b[0m\r\n")
+		}
+		for i, f := range files {
+			s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-20s \x1b[0;37m%7s  %3d  \x1b[1;30m%s\x1b[0m\r\n",
+				i+1, truncStr(f.Filename, 20), sizeStr(f.Size), f.Downloads, truncStr(f.Desc, 30))
+		}
+		if b.ratioEnabled() && !b.ratioExempt(user) {
+			s.Printf("\r\n\x1b[1;30m  %s credit left \xfa upload to earn more.\x1b[0m\r\n",
+				sizeStr(b.downloadAllowance(user)))
+		}
+		s.Print("\r\n\x1b[0;37m  [\x1b[1;37m#\x1b[0;37m] download  [\x1b[1;37mU\x1b[0;37m]pload  " +
+			"[\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;36m> \x1b[1;37m")
+		s.Flush()
+
+		line := strings.TrimSpace(s.ReadLine(8))
+		switch {
+		case line == "" || strings.EqualFold(line, "q"):
+			return
+		case strings.EqualFold(line, "u"):
+			b.uploadFile(s, user, area)
+			s.Pause()
+		default:
+			n, convErr := strconv.Atoi(line)
+			if convErr != nil || n < 1 || n > len(files) {
+				s.Notice("No such file number.")
+				continue
+			}
+			b.downloadFile(s, user, &files[n-1])
+			s.Pause()
+		}
 	}
-	for i, f := range files {
-		s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-20s \x1b[0;37m%7s  %3d  \x1b[1;30m%s\x1b[0m\r\n",
-			i+1, truncStr(f.Filename, 20), sizeStr(f.Size), f.Downloads, truncStr(f.Desc, 30))
-	}
-	s.Print("\r\n\x1b[1;30m  Grab files from the web face -- each one gets a signed, expiring link.\x1b[0m\r\n")
-	s.Pause()
 }
 
 // newFiles lists the most recent uploads across every area the caller can
@@ -1353,6 +1377,7 @@ func (b *board) profile(s *term.Session, user *store.User) {
 	row("Security", "SL "+strconv.Itoa(user.SL)+" / DSL "+strconv.Itoa(user.DSL))
 	row("Posts", strconv.Itoa(user.Posts))
 	row("Calls", strconv.Itoa(user.Calls))
+	row("Files", b.ratioLine(user))
 	row("First Call", dateOr(user.FirstCall))
 	row("Last Call", dateOr(user.LastCall))
 	row("Tagline", user.Tagline)

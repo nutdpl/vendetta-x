@@ -64,8 +64,19 @@ func (s *server) files(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Printf("web: Files: %v", err)
 				}
+				var uid int64
+				if base.User != nil {
+					uid = base.User.ID
+				}
 				for _, e := range entries {
-					files = append(files, fileDL{File: e, URL: s.signDownload(e.ID, downloadTTL)})
+					dl := fileDL{File: e, URL: s.signDownload(e.ID, uid, downloadTTL)}
+					// Ratio gate: if a logged-in caller lacks the credit for
+					// this file, offer no working link (the URL is blanked and
+					// the template shows it as locked).
+					if base.User != nil && s.st.RatioBlocks(base.User, e.Size) {
+						dl.URL = ""
+					}
+					files = append(files, dl)
 				}
 			}
 		}
@@ -136,6 +147,8 @@ func (s *server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	desc := strings.TrimSpace(r.FormValue("description"))
 	if _, err := s.st.AddFile(id, filename, desc, u.Handle, content); err != nil {
 		log.Printf("web: AddFile: %v", err)
+	} else if err := s.st.AddUploadBytes(u.ID, int64(len(content))); err != nil {
+		log.Printf("web: AddUploadBytes: %v", err)
 	}
 	http.Redirect(w, r, dest, http.StatusSeeOther)
 }

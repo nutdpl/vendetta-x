@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -212,6 +213,21 @@ func clampLevel(raw string, current int) int {
 		return 255
 	}
 	return int(v)
+}
+
+// clampRange parses raw as an int, clamping to [lo, hi]; def on parse failure.
+func clampRange(raw string, def, lo, hi int) int {
+	v, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return def
+	}
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 // uptimeStr renders a duration as a compact "2d 3h 14m".

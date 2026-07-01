@@ -45,6 +45,22 @@
 </div>
 
   <section class="panel">
+    <h2 class="ph">file ratio</h2>
+    <p class="sg-note">"Ratio is law." When on, callers must upload to keep downloading: each uploaded byte earns <em>ratio</em> bytes of download credit, on top of a free allowance so newcomers and small grabs are never blocked. Sysops are always exempt. Off by default.</p>
+    <div class="field field-check">
+      <label><input type="checkbox" name="ratio_enabled" value="1" {{if .RatioOn}}checked{{end}}> enforce download ratio</label>
+    </div>
+    <div class="field">
+      <label for="s-rb">ratio (download bytes per upload byte)</label>
+      <input id="s-rb" type="number" name="ratio_bytes" min="1" max="100" value="{{.RatioBytes}}">
+    </div>
+    <div class="field">
+      <label for="s-rf">free download allowance (MB)</label>
+      <input id="s-rf" type="number" name="ratio_free_mb" min="0" max="100000" value="{{.RatioFreeMB}}">
+    </div>
+  </section>
+
+  <section class="panel">
     <h2 class="ph">features <span class="chip">{{len .Features}}</span></h2>
     <p class="sg-note">Switch a feature off to hide it on every face. Disabled features vanish from the menus; the sysop tools here keep working.</p>
     <table class="table">
