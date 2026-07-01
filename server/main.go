@@ -1285,10 +1285,10 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 func (b *board) whosOnline(s *term.Session) {
 	online := b.pres.list()
 	b.screenHeader(s, "who's online")
-	s.Print("\x1b[1;30m   #  \x1b[0;37mCaller\x1b[0m\r\n")
+	s.Print("\x1b[1;35m   #  \x1b[0;36mCaller\x1b[0m\r\n")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	for i, w := range online {
-		s.Printf("  \x1b[1;33m%2d  \x1b[1;32m\xfe \x1b[0;37m%s\x1b[0m\r\n", i+1, w)
+		s.Printf("  \x1b[1;33m%2d  \x1b[1;36m\xfe \x1b[0;37m%s\x1b[0m\r\n", i+1, w)
 	}
 	if len(online) == 0 {
 		s.Print("\x1b[0;37m  Nobody on the wire right now.\x1b[0m\r\n")
@@ -1304,7 +1304,7 @@ func (b *board) userList(s *term.Session) {
 		return
 	}
 	b.screenHeader(s, "user list")
-	s.Printf("\x1b[1;30m  %-16s %-9s %4s %6s  %s\x1b[0m\r\n", "Handle", "Group", "SL", "Posts", "Tagline")
+	s.Printf("\x1b[1;35m  %-16s %-9s %4s %6s  %s\x1b[0m\r\n", "Handle", "Group", "SL", "Posts", "Tagline")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	for _, u := range users {
 		s.Printf("  \x1b[1;37m%-16s \x1b[0;37m%-9s \x1b[1;36m%4d \x1b[0;37m%6d  \x1b[1;30m%s\x1b[0m\r\n",
@@ -1322,7 +1322,7 @@ func (b *board) lastCallers(s *term.Session) {
 		return
 	}
 	b.screenHeader(s, "last callers")
-	s.Printf("\x1b[1;30m   #  %-16s %-9s %s\x1b[0m\r\n", "Handle", "Group", "Last Call")
+	s.Printf("\x1b[1;35m   #  %-16s %-9s %s\x1b[0m\r\n", "Handle", "Group", "Last Call")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	for i, u := range social.LastCallers(users, 12) {
 		s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-16s \x1b[0;37m%-9s \x1b[1;30m%s\x1b[0m\r\n",
