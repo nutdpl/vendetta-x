@@ -22,6 +22,7 @@ from ansi2png import parse as ansi_parse  # noqa: E402
 
 LIGHT, MEDSH, DARKSH, FULL = 0xB0, 0xB1, 0xB2, 0xDB
 DBL_H, SGL_H, DIAMOND = 0xCD, 0xC4, 0x04
+MIDDOT_CP = 0xFA  # raw cp437 byte, for Canvas.set() (vs MIDDOT below: decoded str, for text/raw_line)
 
 BLACK, RED, GREEN, BROWN, BLUE, MAGENTA, CYAN, GREY = range(8)
 DGREY, BRED, BGREEN, YELLOW, BBLUE, BMAGENTA, BCYAN, WHITE = range(8, 16)
@@ -135,10 +136,21 @@ class Canvas:
         return rows_out
 
 
-def textured_bar(canvas, y0, height, erode_side, hue_fn, rng=None, speckle=0.06):
+HALF_TOP, HALF_BOT = 0xDF, 0xDC  # upper/lower half block
+
+
+def textured_bar(canvas, y0, height, erode_side, hue_fn, rng=None, speckle=0.06,
+                  half_block_bite=False, ice_hotspot=False):
     """A solid `height`-row bar across the canvas width, with the named edge
     (top|bottom) eroded into a jagged dithered boundary, plus light interior
-    speckle (material grain)."""
+    speckle (material grain).
+
+    half_block_bite: the erosion edge steps in half-cell increments (real
+    half-block glyphs) instead of only shade-character density -- a finer
+    boundary than shade chars alone give.
+    ice_hotspot: scatter a few cells with a bright BACKGROUND color instead
+    of just foreground shade -- genuine iCE-color technique (SGR 100-107),
+    not just bright foreground text."""
     rng = rng or random
     cols = canvas.cols
     for yy in range(height):
@@ -148,15 +160,21 @@ def textured_bar(canvas, y0, height, erode_side, hue_fn, rng=None, speckle=0.06)
         for x in range(cols):
             if rng.random() < speckle:
                 canvas.set(x, y0 + yy, rng.choice([DARKSH, MEDSH]), hue_fn(x / cols))
+            if ice_hotspot and rng.random() < speckle * 0.6:
+                canvas.set(x, y0 + yy, DARKSH, BRED, bg=BMAGENTA)
     edge_y = y0 if erode_side == "top" else y0 + height - 1
     halo_dir = -1 if erode_side == "top" else 1
+    half_glyph = HALF_BOT if erode_side == "top" else HALF_TOP
     for x in range(cols):
         depth = rng.choices([0, 1, 2, 3], weights=[40, 30, 20, 10])[0]
         fg = hue_fn(x / cols)
         if depth == 0:
             continue
         elif depth == 1:
-            canvas.set(x, edge_y, DARKSH, fg)
+            if half_block_bite and rng.random() < 0.5:
+                canvas.set(x, edge_y, half_glyph, fg)
+            else:
+                canvas.set(x, edge_y, DARKSH, fg)
         elif depth == 2:
             canvas.set(x, edge_y, MEDSH, fg)
             if rng.random() < 0.5:
@@ -254,6 +272,79 @@ def bottom_bar_lines(cols=80, rng=None):
     c = Canvas(cols, 2)
     textured_bar(c, 0, 2, "top", hue_magenta_red, rng=rng)
     return c.to_tpl_rows()
+
+
+def star_field(canvas, y0, y1, rng=None, accent_color=MAGENTA, density=0.02):
+    """Sparse background noise (dots + occasional light-shade fleck) so a
+    logo sits IN a space instead of floating on flat void. Purely additive:
+    call before pasting anything opaque on top."""
+    rng = rng or random
+    for y in range(y0, y1):
+        for x in range(canvas.cols):
+            r = rng.random()
+            if r < density:
+                canvas.set(x, y, MIDDOT_CP, DGREY)
+            elif r < density * 1.5:
+                canvas.set(x, y, LIGHT, DGREY)
+            elif r < density * 1.8:
+                canvas.set(x, y, MIDDOT_CP, accent_color)
+
+
+def interference_lines(canvas, rows, rng=None, runs=3, color=DGREY):
+    """Short horizontal dash static on the given rows -- a signal-noise
+    accent for a background field, not a structural rule."""
+    rng = rng or random
+    for y in rows:
+        for _ in range(runs):
+            x0 = rng.randrange(2, max(3, canvas.cols - 10))
+            for i in range(rng.randrange(3, 8)):
+                canvas.set(x0 + i, y, 0xC4, color)
+
+
+def cast_shadow(canvas, glyph_canvas, lx, ly, glyph_w, glyph_h, dx=2, dy=1,
+                 color=DGREY, density=0.55, rng=None):
+    """Drop a shadow of an already-pasted glyph block onto the canvas,
+    offset (dx, dy). Thinned to `density` and painted in a neutral color
+    (not the glyph's own hue) -- an offset shadow unavoidably lands inside a
+    letter's interior gaps too when strokes are only a couple cells apart,
+    and a saturated, full-density fill there reads as muddy rather than a
+    clean drop shadow. Call BEFORE pasting the glyph itself so the glyph
+    paints over its own footprint."""
+    rng = rng or random
+    for ry in range(glyph_h):
+        for rx in range(glyph_w):
+            cell = glyph_canvas.get(rx, ry)
+            if cell and cell.cp != 0x20 and rng.random() < density:
+                canvas.set(lx + rx + dx, ly + ry + dy, LIGHT, color)
+
+
+def glints(canvas, positions, color=WHITE):
+    """Small sparkle marks (a half-block + a dot above it) at each (x, y) --
+    a cheap way to fake a light catching a few letter edges."""
+    for (x, y) in positions:
+        canvas.set(x, y, HALF_TOP, color)
+        canvas.set(x + 1, y - 1, MIDDOT_CP, color)
+
+
+def floor_reflection(canvas, glyph_canvas, lx, ly, glyph_w, glyph_h, base_y,
+                      color=MAGENTA, color2=RED, rng=None):
+    """A fading reflection under a glyph block's baseline: for each column
+    that actually touches the bottom two glyph rows, drop a light shade
+    directly below, and sometimes a fainter dot one row further."""
+    rng = rng or random
+    for rx in range(glyph_w):
+        hit = False
+        for ry in (glyph_h - 1, glyph_h - 2):
+            cell = glyph_canvas.get(rx, ry)
+            if cell and cell.cp != 0x20:
+                hit = True
+                break
+        if not hit:
+            continue
+        if rng.random() < 0.55:
+            canvas.set(lx + rx, base_y + 1, LIGHT, color)
+        if rng.random() < 0.22:
+            canvas.set(lx + rx, base_y + 2, MIDDOT_CP, color2)
 
 
 def dithered_divider(canvas, y, x0, x1, color, accent_color=None, rng=None, solid=0.85):

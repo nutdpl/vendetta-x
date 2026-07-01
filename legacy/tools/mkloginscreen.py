@@ -3,11 +3,12 @@
 line before the login matrix (see server/server_connect.go's connect()).
 
 VENDETTA/X is set in a real scene TDF font (Cybercrime, art/fonts/CYBRCRME.TDF)
-rather than a hand-rolled bitmap face, framed by the board's edge-eroded
-dither style (tools/dither.py) instead of flat gradient bars. The live "front
-porch" stats (nodes online, total users, total calls) are pipe-code data
-tokens (|CN |TU |TC, spliced by board.loginTokens in server/main.go) so the
-screen stays alive instead of static.
+rather than a hand-rolled bitmap face, sitting in a star-noise environment
+with a cast shadow, letter-top glints, and a floor reflection, framed by
+half-block-bite eroded bars with iCE-color hotspots (tools/dither.py). The
+live "front porch" stats (nodes online, total users, total calls) are
+pipe-code data tokens (|CN |TU |TC, spliced by board.loginTokens in
+server/main.go) so the screen stays alive instead of static.
 
     python3 tools/mkloginscreen.py
     # -> ../art/loginscreen.ans
@@ -20,7 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from dither import (  # noqa: E402
     BCYAN, BMAGENTA, BRED, Canvas, DGREY, GREY, MAGENTA, WHITE,
-    accent_blob, dithered_divider, textured_bar,
+    accent_blob, cast_shadow, dithered_divider, floor_reflection, glints,
+    interference_lines, star_field, textured_bar,
 )
 
 COLS = 80
@@ -38,23 +40,41 @@ def hue_magenta_red(t):
 
 
 def build():
+    rng = random.Random(1994)
     c = Canvas(COLS, 30)
-    textured_bar(c, 0, 2, "bottom", hue_magenta_red)
+    textured_bar(c, 0, 2, "bottom", hue_magenta_red, rng=rng,
+                 half_block_bite=True, ice_hotspot=True)
 
-    # Render the logo off-canvas to measure its width, then paste it centered.
+    # Render the logo off-canvas to measure it, then paste it centered --
+    # but first lay the star field + a shadow of it into the space it'll
+    # occupy, so the logo sits IN an environment instead of on flat void.
     tmp = Canvas(200, 30)
     logo_w, logo_h = tmp.paste_tdf_text(0, 0, FONT_FILE, "Cybercrime", "VENDETTA/X")
     lx = max(0, (COLS - logo_w) // 2)
     ly = 3
+
+    star_field(c, 3, 3 + logo_h + 3, rng=rng)
+    interference_lines(c, (3, 3 + logo_h + 2), rng=rng)
+    cast_shadow(c, tmp, lx, ly, logo_w, logo_h, color=DGREY, rng=rng)
+
     for y in range(logo_h):
         for x in range(logo_w):
             cell = tmp.get(x, y)
             if cell and cell.cp != 0x20:
                 c.set(lx + x, ly + y, cell.cp, cell.fg, cell.bg)
 
-    accent_blob(c, min(COLS - 4, lx + logo_w - 5), ly, 10, BCYAN)
+    glints(c, [(lx + 9, ly), (lx + 33, ly), (lx + 57, ly)])
 
-    tagline_y = ly + logo_h + 1
+    # cyan accent blob painted behind the X (before the glyph loop above
+    # would be wrong -- it needs to still show at the fringe); paint a
+    # smaller blob now and let it read as peeking from behind the stroke.
+    bx = min(COLS - 4, lx + logo_w - 6)
+    accent_blob(c, bx, ly + 1, 6, BCYAN, rng=rng)
+
+    base_y = ly + logo_h
+    floor_reflection(c, tmp, lx, ly, logo_w, logo_h, base_y, rng=rng)
+
+    tagline_y = base_y + 3
     c.text_centered(
         tagline_y,
         '"you have reached a wrong number ... or the best one you ever dialed."',
@@ -62,7 +82,7 @@ def build():
     )
 
     div1_y = tagline_y + 2
-    dithered_divider(c, div1_y, 4, COLS - 4, BMAGENTA, accent_color=BCYAN)
+    dithered_divider(c, div1_y, 4, COLS - 4, BMAGENTA, accent_color=BCYAN, rng=rng)
 
     stat_y = div1_y + 1
     c.raw_line(
@@ -79,7 +99,7 @@ def build():
     )
 
     div2_y = stat_y + 3
-    dithered_divider(c, div2_y, 4, COLS - 4, BMAGENTA, accent_color=BCYAN)
+    dithered_divider(c, div2_y, 4, COLS - 4, BMAGENTA, accent_color=BCYAN, rng=rng)
 
     prompt_y = div2_y + 2
     c.text_centered(prompt_y, "[ press any key to enter the board ]", WHITE)
@@ -91,7 +111,8 @@ def build():
     )
 
     bar_y = foot_y + 3
-    textured_bar(c, bar_y, 2, "top", hue_magenta_red)
+    textured_bar(c, bar_y, 2, "top", hue_magenta_red, rng=rng,
+                 half_block_bite=True, ice_hotspot=True)
     return c, bar_y + 2
 
 
