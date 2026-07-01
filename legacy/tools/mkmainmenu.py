@@ -39,7 +39,8 @@ LCOL, RCOL = 8, 44
 
 
 def main():
-    chrome, h = build_chrome("VENDETTA/X", FONT_FILE, "Cybercrime", "main menu", cols=COLS)
+    chrome, h = build_chrome("VENDETTA/X", FONT_FILE, "Cybercrime", "main menu",
+                              cols=COLS, environment=True, ice=True)
 
     out = ["|CL"] + chrome
 
@@ -57,7 +58,7 @@ def main():
     # fresh row -- jump to an absolute row before the bottom bar instead of
     # relying on sequential \n drift (bit us once already on matrix.pp).
     bar_y = base + rows_per + 1
-    bar = bottom_bar_lines(COLS)
+    bar = bottom_bar_lines(COLS, ice=True)
     out.append("|[Y%d" % bar_y + bar[0])
     out.append(bar[1])
 

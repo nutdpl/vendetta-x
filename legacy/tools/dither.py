@@ -226,11 +226,18 @@ def hue_magenta_red(t):
 
 
 def build_chrome(title, font_file, font_name, subtitle, cols=80,
-                  top_bar=True, blob=True, rng=None):
+                  top_bar=True, blob=True, rng=None, environment=False, ice=False):
     """Compose the board's standard screen header: an eroded gradient bar,
     the centered TDF wordmark with an accent blob, and a dithered divider
     carrying the board name + subtitle -- the loginscreen's full treatment,
     reusable for any menu screen instead of a bare logo + plain rule.
+
+    environment=True adds the fuller loginscreen-redo treatment: a
+    star-noise field + interference static behind the logo, a thinned cast
+    shadow, and letter-top glints. ice=True gives the top bar half-block-
+    bite erosion + iCE-color background hotspots instead of plain shade
+    erosion. Both default off so existing callers (matrix/submenus) render
+    exactly as before.
 
     Returns (lines, rows_consumed) where `lines` is ready to splice into a
     .tpl `out` list right after "|CL", and `rows_consumed` is how many
@@ -242,12 +249,19 @@ def build_chrome(title, font_file, font_name, subtitle, cols=80,
     c = Canvas(cols, 4)
     y0 = 0
     if top_bar:
-        textured_bar(c, 0, 2, "bottom", hue_magenta_red, rng=rng)
+        textured_bar(c, 0, 2, "bottom", hue_magenta_red, rng=rng,
+                     half_block_bite=ice, ice_hotspot=ice)
         y0 = 3  # 2-row bar + 1 blank gap
 
     tmp = Canvas(200, 20)
     logo_w, logo_h = tmp.paste_tdf_text(0, 0, font_file, font_name, title)
     lx = max(0, (cols - logo_w) // 2)
+
+    if environment:
+        star_field(c, y0, y0 + logo_h, rng=rng)
+        interference_lines(c, (y0, y0 + logo_h - 1), rng=rng)
+        cast_shadow(c, tmp, lx, y0, logo_w, logo_h, color=DGREY, rng=rng)
+
     for ry in range(logo_h):
         for rx in range(logo_w):
             cell = tmp.get(rx, ry)
@@ -255,6 +269,9 @@ def build_chrome(title, font_file, font_name, subtitle, cols=80,
                 c.set(lx + rx, y0 + ry, cell.cp, cell.fg, cell.bg)
     if blob:
         accent_blob(c, min(cols - 4, lx + logo_w - 5), y0, 10, BCYAN, rng=rng)
+    if environment:
+        step = max(1, logo_w // 4)
+        glints(c, [(lx + step, y0), (lx + step * 2, y0), (lx + step * 3, y0)])
 
     div_y = y0 + logo_h
     dithered_divider(c, div_y, 4, cols - 4, BMAGENTA, accent_color=BCYAN, solid=0.7, rng=rng)
@@ -265,12 +282,13 @@ def build_chrome(title, font_file, font_name, subtitle, cols=80,
     return lines, div_y + 2 + 1
 
 
-def bottom_bar_lines(cols=80, rng=None):
+def bottom_bar_lines(cols=80, rng=None, ice=False):
     """A 2-row eroded gradient bar (mirrored: erodes its top edge), ready to
     append as the last lines of a screen."""
     rng = rng or random
     c = Canvas(cols, 2)
-    textured_bar(c, 0, 2, "top", hue_magenta_red, rng=rng)
+    textured_bar(c, 0, 2, "top", hue_magenta_red, rng=rng,
+                 half_block_bite=ice, ice_hotspot=ice)
     return c.to_tpl_rows()
 
 
