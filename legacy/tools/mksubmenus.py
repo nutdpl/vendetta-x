@@ -34,7 +34,8 @@ MENUS = [
 
 def build(seed, name, title, subtitle, opts):
     random.seed(seed)
-    chrome, h = build_chrome(title, FONT_FILE, "Cybercrime", subtitle, cols=COLS)
+    chrome, h = build_chrome(title, FONT_FILE, "Cybercrime", subtitle, cols=COLS,
+                              environment=True, ice=True)
     ocol = max(1, (COLS - max(len(lbl) for _, lbl in opts)) // 2)
 
     out = ["|CL"] + chrome
@@ -43,7 +44,7 @@ def build(seed, name, title, subtitle, opts):
         out.append("|{%d,%d,%s,%s}" % (base + i, ocol, key, label))
 
     bar_y = base + len(opts) + 1
-    bar = bottom_bar_lines(COLS)
+    bar = bottom_bar_lines(COLS, ice=True)
     out.append("|[Y%d" % bar_y + bar[0])
     out.append(bar[1])
 

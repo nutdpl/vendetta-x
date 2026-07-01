@@ -19,7 +19,10 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))  # legacy/tools -> repo root
 sys.path.insert(0, HERE)
-from dither import BCYAN, BMAGENTA, Canvas, dithered_divider  # noqa: E402
+from dither import (  # noqa: E402
+    BCYAN, BMAGENTA, Canvas, cast_shadow, dithered_divider, glints,
+    interference_lines, star_field,
+)
 
 COLS = 80
 FONT_FILE = os.path.join(ROOT, "art", "fonts", "CYBRCRME.TDF")
@@ -28,16 +31,29 @@ random.seed(11)
 
 
 def main():
+    rng = random.Random(11)
     c = Canvas(COLS, 2)
 
     tmp = Canvas(200, 20)
     logo_w, logo_h = tmp.paste_tdf_text(0, 0, FONT_FILE, "Cybercrime", "VENDETTA/X")
     lx = max(0, (COLS - logo_w) // 2)
+
+    # Same environment treatment as the loginscreen/mainmenu: a star field
+    # + shadow behind the logo, not just the bare glyphs -- no top/bottom
+    # bars here (this screen stays compact; it repaints on every failed
+    # login attempt), so no ice= hotspots to add.
+    star_field(c, 0, logo_h, rng=rng)
+    interference_lines(c, (0, logo_h - 1), rng=rng, runs=2)
+    cast_shadow(c, tmp, lx, 0, logo_w, logo_h, rng=rng)
+
     for y in range(logo_h):
         for x in range(logo_w):
             cell = tmp.get(x, y)
             if cell and cell.cp != 0x20:
                 c.set(lx + x, y, cell.cp, cell.fg, cell.bg)
+
+    step = max(1, logo_w // 4)
+    glints(c, [(lx + step, 0), (lx + step * 2, 0), (lx + step * 3, 0)])
 
     div_y = logo_h
     dithered_divider(c, div_y, 4, COLS - 4, BMAGENTA, accent_color=BCYAN, solid=0.6)
