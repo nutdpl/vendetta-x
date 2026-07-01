@@ -28,7 +28,7 @@ func startServer(t *testing.T, hostKeyPath string) (addr string, seen *seenAddrs
 	}
 
 	seen = &seenAddrs{}
-	onSession := func(ch io.ReadWriteCloser, remoteAddr string) {
+	onSession := func(ch io.ReadWriteCloser, remoteAddr, _ string) {
 		seen.add(remoteAddr)
 		// Write a banner immediately.
 		_, _ = io.WriteString(ch, banner)

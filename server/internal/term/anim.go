@@ -139,7 +139,7 @@ func (s *Session) Reveal(path string, tokens map[string]string, lineDelay time.D
 		if nl := bytes.IndexByte(data[i:], '\n'); nl >= 0 {
 			end = i + nl + 1
 		}
-		s.bw.Write(data[i:end])
+		s.emitBytes(data[i:end])
 		i = end
 		if skipped {
 			continue // already skipping: blast the remaining lines

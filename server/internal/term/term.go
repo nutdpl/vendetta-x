@@ -80,6 +80,11 @@ type Session struct {
 	// for binary file transfer (Transfer): a telnet byte stream must escape
 	// 0xFF as IAC IAC, while an SSH channel is already 8-bit clean.
 	telnet bool
+
+	// utf8 is true when the client renders UTF-8 rather than raw CP437 (see
+	// charset.go: DetectCharset / SetTermType). Output then transcodes CP437
+	// bytes to their Unicode glyphs and non-ASCII input folds back to CP437.
+	utf8 bool
 }
 
 type keyEvent struct {
@@ -131,14 +136,16 @@ func (s *Session) Close() error {
 	return s.rwc.Close()
 }
 func (s *Session) Flush()                            { s.bw.Flush() }
-func (s *Session) Print(str string)                  { s.bw.WriteString(str) }
-func (s *Session) Printf(f string, a ...interface{}) { fmt.Fprintf(s.bw, f, a...) }
-func (s *Session) Write(b []byte)                    { s.bw.Write(b) }
+func (s *Session) Print(str string)                  { s.emitBytes([]byte(str)) }
+func (s *Session) Printf(f string, a ...interface{}) { fmt.Fprintf(emitWriter{s}, f, a...) }
+func (s *Session) Write(b []byte)                    { s.emitBytes(b) }
 
 // Negotiate puts the client into character-at-a-time mode: server WILL echo +
-// suppress-go-ahead. Good enough for SyncTERM/xterm/PuTTY.
+// suppress-go-ahead. Good enough for SyncTERM/xterm/PuTTY. It writes straight
+// to the buffered writer, below the charset layer: 0xFF here is telnet IAC,
+// never a glyph to transcode.
 func (s *Session) Negotiate() {
-	s.Write([]byte{255, 251, 1, 255, 251, 3}) // IAC WILL ECHO, IAC WILL SGA
+	s.bw.Write([]byte{255, 251, 1, 255, 251, 3}) // IAC WILL ECHO, IAC WILL SGA
 	s.Flush()
 }
 
@@ -220,6 +227,12 @@ func (s *Session) ReadKey() (Kind, byte) {
 			}
 			return KeyEsc, 27
 		default:
+			if b >= 0x80 && s.utf8 {
+				// A UTF-8 client typed a non-ASCII char: fold the multibyte
+				// sequence down to one CP437 byte (or '?') so the rest of the
+				// board keeps seeing single bytes.
+				return KeyChar, s.foldUTF8Input(b)
+			}
 			return KeyChar, b
 		}
 	}
@@ -248,7 +261,7 @@ func (s *Session) ReadLine(max int) string {
 			}
 			if ch >= 32 && len(buf) < max {
 				buf = append(buf, ch)
-				s.bw.WriteByte(ch)
+				s.emitByte(ch)
 				s.Flush()
 			}
 		}

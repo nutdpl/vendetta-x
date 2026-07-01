@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"vendetta-x/server/internal/store"
@@ -33,6 +34,11 @@ func play(s *term.Session, beats []beat) {
 func (b *board) connect(s *term.Session, tok map[string]string) {
 	s.Print("\x1b[0m\x1b[2J\x1b[H\r\n")
 
+	// Probe the terminal's charset before the show starts, so the handshake's
+	// "negotiating" line reports the real result. Telnet only (it needs a read
+	// deadline); the SSH face already decided from the client's TERM string.
+	s.DetectCharset(400 * time.Millisecond)
+
 	// The dialing handshake: one paced line at a time, each pause its own skip
 	// point. A keypress jumps past the dialing straight to the splash.
 	play(s, []beat{
@@ -40,7 +46,8 @@ func (b *board) connect(s *term.Session, tok map[string]string) {
 		{"  \x1b[1;30mraising dtr .............. \x1b[0;32mok\x1b[0m", 200 * time.Millisecond},
 		{"  \x1b[1;30mcarrier detect ........... \x1b[1;33mringing\x1b[0m", 360 * time.Millisecond},
 		{"  \x1b[1;32m  CONNECT 57600\x1b[1;30m/ARQ/V90/LAPM/V42BIS\x1b[0m", 420 * time.Millisecond},
-		{"  \x1b[1;30mnegotiating ansi-bbs ..... \x1b[0;36mCP437\x1b[0m", 260 * time.Millisecond},
+		{"  \x1b[1;30mnegotiating ansi-bbs ..... \x1b[0;36m" +
+			strings.ToUpper(s.CharsetName()) + "\x1b[0m", 260 * time.Millisecond},
 	})
 	s.Sleep(180 * time.Millisecond)
 
