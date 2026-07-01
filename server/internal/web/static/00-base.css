@@ -51,9 +51,10 @@
   /* -- accents -- */
   --cyan:      #36e6f0;   /* the brand / links                  */
   --cyan-soft: #6df0f7;   /* link hover                         */
-  --blue:      #3a6df0;   /* Phiber2 stop 1                     */
-  --red:       #ff3b54;   /* Phiber2 stop 2                     */
-  --magenta:   #e23bff;   /* Phiber2 stop 3                     */
+  --blue:      #3a6df0;   /* input-focus ring only, not the brand gradient */
+  --red:       #ff3b54;   /* Cybercrime stop 3                  */
+  --magenta:   #e23bff;   /* Cybercrime stop 1                  */
+  --pink:      #ff3ec2;   /* Cybercrime stop 2                  */
   --green:     #3bf08a;   /* "online" / positive                */
   --amber:     #f0b53a;   /* warning / NEW                      */
 
@@ -61,9 +62,10 @@
   --line:      #1c1f29;   /* hairline border                    */
   --line-soft: #14161e;   /* dotted inner separators            */
 
-  /* -- the gradient (everywhere the scene signs its name) -- */
-  --grad:      linear-gradient(90deg, var(--blue), var(--red) 55%, var(--magenta));
-  --grad-135:  linear-gradient(135deg, var(--blue), var(--red) 55%, var(--magenta));
+  /* -- the gradient (matches the telnet/ssh Cybercrime TDF wordmark:
+     magenta -> hot pink -> red, the same identity across every face) -- */
+  --grad:      linear-gradient(90deg, var(--magenta), var(--pink) 50%, var(--red));
+  --grad-135:  linear-gradient(135deg, var(--magenta), var(--pink) 50%, var(--red));
 
   /* -- spacing scale (4px base) -- */
   --s1: 4px;
@@ -177,20 +179,19 @@ b, strong { color: var(--ink-bright); font-weight: 700; }
   border-bottom: 1px solid var(--line);
 }
 .brand {
-  font-size: var(--fz-3xl);
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: var(--cyan);
-  text-shadow: var(--glow-cyan);
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
-.brand:hover { color: var(--cyan); }
-.brand .slash {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: none;
+.brand-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 10px rgba(226,59,255,0.35));
+  transition: filter var(--t);
+}
+.brand:hover .brand-logo {
+  filter: drop-shadow(0 0 16px rgba(226,59,255,0.55));
 }
 .tagline {
   color: var(--ink-faint);
@@ -790,13 +791,13 @@ kbd {
   .cols, .cols.c3, .cols.sidebar, .filescols { grid-template-columns: 1fr; }
   .wrap { padding-left: var(--s4); padding-right: var(--s4); }
   .masthead { padding-top: var(--s4); }
-  .brand { font-size: var(--fz-2xl); }
+  .brand-logo { height: 32px; }
   .nav { margin-left: 0; width: 100%; gap: var(--s3); flex-wrap: wrap; }
   .postform .row { flex-direction: column; }
   .profile-head .ph-stats { margin-left: 0; width: 100%; }
 }
 @media (max-width: 380px) {
-  .brand { font-size: var(--fz-xl); letter-spacing: 2px; }
+  .brand-logo { height: 26px; }
   .panel { padding: var(--s3) var(--s4); }
   .nav { gap: var(--s2); font-size: var(--fz-xs); }
 }

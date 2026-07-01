@@ -6,12 +6,13 @@
 <meta name="color-scheme" content="dark">
 <title>{{.Title}} :: Vendetta/X</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="icon" type="image/png" href="/static/img/favicon.png">
 </head>
 <body>
 <div class="wrap">
 
   <header class="masthead">
-    <a class="brand" href="/">VENDETTA<span class="slash">/</span>X</a>
+    <a class="brand" href="/"><img class="brand-logo" src="/static/img/logo.png" alt="VENDETTA/X"></a>
     <div class="tagline">this is not a bbs</div>
     <nav class="nav" aria-label="primary">
       <a href="/"        class="{{if eq .Active "home"}}on{{end}}"   {{if eq .Active "home"}}aria-current="page"{{end}}>home</a>

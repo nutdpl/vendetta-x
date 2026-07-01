@@ -65,8 +65,10 @@ func TestPagesRenderWithMasthead(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Errorf("GET %s: status = %d, want 200", path, rec.Code)
 		}
+		// The masthead brand is the real TDF wordmark image, not text --
+		// check for the logo, not incidental board-name text elsewhere.
 		body := rec.Body.String()
-		if !strings.Contains(body, "VENDETTA") {
+		if !strings.Contains(body, `class="brand-logo"`) || !strings.Contains(body, "VENDETTA/X") {
 			t.Errorf("GET %s: body missing board name masthead", path)
 		}
 	}

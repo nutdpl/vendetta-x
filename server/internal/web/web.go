@@ -105,6 +105,10 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 
 	// static assets (css concatenated from static/*.css in name order).
 	mux.HandleFunc("GET /static/style.css", s.css)
+	// static/img/* served as-is (the TDF wordmark + favicon).
+	if imgFS, err := fs.Sub(assets, "static/img"); err == nil {
+		mux.Handle("GET /static/img/", http.StripPrefix("/static/img/", http.FileServerFS(imgFS)))
+	}
 
 	// pages. Handlers live in the per-feature web_*.go files.
 	mux.HandleFunc("GET /{$}", s.home)
