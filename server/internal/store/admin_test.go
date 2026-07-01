@@ -1,6 +1,9 @@
 package store
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestBoardCRUD(t *testing.T) {
 	s := newTestStore(t)
@@ -143,5 +146,65 @@ func TestSettingsAndFeatures(t *testing.T) {
 	}
 	if all["board.name"] != "ACME" || all["feature.voting"] != "0" {
 		t.Fatalf("Settings map wrong: %+v", all)
+	}
+}
+
+func TestPurgeOldMessages(t *testing.T) {
+	s := newTestStore(t)
+	boardID, err := s.AddBoard(&Board{Tag: "t", Name: "Test"})
+	if err != nil {
+		t.Fatalf("AddBoard: %v", err)
+	}
+
+	now := time.Now()
+	old, _ := s.PostMessage(&Message{BoardID: boardID, Subject: "old", Posted: now.Add(-48 * time.Hour)})
+	recent, _ := s.PostMessage(&Message{BoardID: boardID, Subject: "recent", Posted: now.Add(-1 * time.Hour)})
+
+	n, err := s.PurgeOldMessages(now.Add(-24 * time.Hour))
+	if err != nil {
+		t.Fatalf("PurgeOldMessages: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("purged %d messages, want 1", n)
+	}
+
+	msgs, _ := s.Messages(boardID, 0)
+	if len(msgs) != 1 || msgs[0].ID != recent {
+		t.Fatalf("wrong messages survived purge: %+v", msgs)
+	}
+	_ = old
+}
+
+func TestTrimOneliners(t *testing.T) {
+	s := newTestStore(t)
+	base := time.Now()
+	for i := 0; i < 5; i++ {
+		if err := s.AddOneliner(&Oneliner{
+			Author: "x", Text: "line",
+			Posted: base.Add(time.Duration(i) * time.Minute),
+		}); err != nil {
+			t.Fatalf("AddOneliner %d: %v", i, err)
+		}
+	}
+
+	n, err := s.TrimOneliners(2)
+	if err != nil {
+		t.Fatalf("TrimOneliners: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("trimmed %d, want 3", n)
+	}
+	left, _ := s.Oneliners(10)
+	if len(left) != 2 {
+		t.Fatalf("left with %d oneliners, want 2", len(left))
+	}
+
+	// keep <= 0 is a no-op.
+	if n, err := s.TrimOneliners(0); err != nil || n != 0 {
+		t.Fatalf("TrimOneliners(0) = %d, %v, want 0, nil", n, err)
+	}
+	left, _ = s.Oneliners(10)
+	if len(left) != 2 {
+		t.Fatalf("TrimOneliners(0) trimmed something: %d left", len(left))
 	}
 }

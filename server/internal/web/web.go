@@ -39,6 +39,7 @@ import (
 	"vendetta-x/server/internal/door"
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/mail"
+	"vendetta-x/server/internal/schedule"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/throttle"
 	"vendetta-x/server/internal/voting"
@@ -99,6 +100,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.gfiles, _ = gfiles.New(st.DB())
 	s.doorStore, _ = door.New(st.DB())
 	s.bulletins, _ = bulletin.New(st.DB())
+	s.events, _ = schedule.New(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -203,6 +205,13 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/bulletins", s.admin(s.sysopBulletinSave))
 	mux.HandleFunc("POST /sysop/bulletins/{id}/delete", s.admin(s.sysopBulletinDelete))
 
+	// scheduled events (CRUD)
+	mux.HandleFunc("GET /sysop/events", s.admin(s.sysopEvents))
+	mux.HandleFunc("GET /sysop/events/new", s.admin(s.sysopEventForm))
+	mux.HandleFunc("GET /sysop/events/{id}/edit", s.admin(s.sysopEventForm))
+	mux.HandleFunc("POST /sysop/events", s.admin(s.sysopEventSave))
+	mux.HandleFunc("POST /sysop/events/{id}/delete", s.admin(s.sysopEventDelete))
+
 	// bbs list (CRUD)
 	mux.HandleFunc("GET /sysop/bbslist", s.admin(s.sysopBbslist))
 	mux.HandleFunc("GET /sysop/bbslist/new", s.admin(s.sysopBbsForm))
@@ -292,6 +301,7 @@ type server struct {
 	gfiles    *gfiles.Store
 	doorStore *door.Store
 	bulletins *bulletin.Store
+	events    *schedule.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being
@@ -536,19 +546,20 @@ var funcs = template.FuncMap{
 		}
 		return t.Format("2006-01-02")
 	},
-	"since":    since,
-	"fsize":    humanSize,
-	"upper":    strings.ToUpper,
-	"lower":    strings.ToLower,
-	"title":    titleize,
-	"initials": initials,
-	"hue":      hue,
-	"trunc":    trunc,
-	"plural":   plural,
-	"add":      func(a, b int) int { return a + b },
-	"pct":      pct,
-	"dict":     dict,
-	"nlbr":     nlbr,
+	"since":       since,
+	"actionLabel": actionLabel,
+	"fsize":       humanSize,
+	"upper":       strings.ToUpper,
+	"lower":       strings.ToLower,
+	"title":       titleize,
+	"initials":    initials,
+	"hue":         hue,
+	"trunc":       trunc,
+	"plural":      plural,
+	"add":         func(a, b int) int { return a + b },
+	"pct":         pct,
+	"dict":        dict,
+	"nlbr":        nlbr,
 }
 
 // pct returns 100*n/max clamped to 0..100 (for ratio/leaderboard bars).

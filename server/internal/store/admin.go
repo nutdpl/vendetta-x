@@ -7,6 +7,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"vendetta-x/server/internal/sanitize"
 )
@@ -81,6 +82,18 @@ func (s *Store) DeleteBoard(id int64) error {
 		_, err := tx.Exec(`DELETE FROM boards WHERE id = ?`, id)
 		return err
 	})
+}
+
+// PurgeOldMessages deletes every message posted before cutoff, across every
+// board, returning how many were removed. Used by the scheduled
+// "messages.purge_old" maintenance event to keep message bases from growing
+// unbounded.
+func (s *Store) PurgeOldMessages(cutoff time.Time) (int64, error) {
+	res, err := s.db.Exec(`DELETE FROM messages WHERE posted > 0 AND posted < ?`, cutoff.Unix())
+	if err != nil {
+		return 0, fmt.Errorf("store: purge old messages: %w", err)
+	}
+	return res.RowsAffected()
 }
 
 // ---- file areas ------------------------------------------------------------
@@ -177,4 +190,22 @@ func (s *Store) DeleteOneliner(id int64) error {
 		return fmt.Errorf("store: delete oneliner %d: %w", id, err)
 	}
 	return nil
+}
+
+// TrimOneliners keeps only the keep most recent oneliners (by posted, id as
+// tiebreak), deleting the rest, and returns how many were removed. Used by the
+// scheduled "oneliners.trim" maintenance event to keep the wall from growing
+// unbounded. keep <= 0 is a no-op (never trims everything by accident).
+func (s *Store) TrimOneliners(keep int) (int64, error) {
+	if keep <= 0 {
+		return 0, nil
+	}
+	res, err := s.db.Exec(
+		`DELETE FROM oneliners WHERE id NOT IN (
+			SELECT id FROM oneliners ORDER BY posted DESC, id DESC LIMIT ?
+		)`, keep)
+	if err != nil {
+		return 0, fmt.Errorf("store: trim oneliners: %w", err)
+	}
+	return res.RowsAffected()
 }

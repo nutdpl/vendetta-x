@@ -1,0 +1,36 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "events")}}
+
+<section class="panel">
+  <h2 class="ph">scheduled events <span class="chip">{{len .Events}}</span>
+    <a class="btn btn-sm" href="/sysop/events/new">+ new event</a>
+  </h2>
+  {{if .Events}}
+    <table class="table">
+      <thead>
+        <tr><th>name</th><th>action</th><th>time</th><th>enabled</th><th>last run</th><th class="rowacts">actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Events}}
+          <tr>
+            <td>{{.Name}}</td>
+            <td>{{template "c-badge" (dict "label" (actionLabel .Action) "variant" "dim")}}</td>
+            <td>{{.TimeOfDay}}</td>
+            <td>{{if .Enabled}}yes{{else}}no{{end}}</td>
+            <td>{{since .LastRun}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/events/{{.ID}}/edit">edit</a>
+              <form method="post" action="/sysop/events/{{.ID}}/delete" onsubmit="return confirm('Delete this event?')" style="display:inline">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No scheduled events yet.</p>
+  {{end}}
+  <p class="sg-note">Events run once a day, unattended, at the chosen time -- no caller session needed. Times are the server's local clock.</p>
+</section>
+{{end}}

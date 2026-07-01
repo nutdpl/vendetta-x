@@ -1,0 +1,39 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "events")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Event}}edit event{{else}}new event{{end}}</h2>
+  <p class="sg-note">Runs once a day, at the chosen time, on the server's local clock -- no caller session needed.</p>
+
+  <form method="post" action="/sysop/events" class="authform" autocomplete="off">
+    <input type="hidden" name="id" value="{{if .Event}}{{.Event.ID}}{{end}}">
+    <div class="field">
+      <label for="e-name">name</label>
+      <input id="e-name" type="text" name="name" maxlength="60" value="{{if .Event}}{{.Event.Name}}{{end}}" required>
+    </div>
+    <div class="field">
+      <label for="e-action">action</label>
+      <select id="e-action" name="action">
+        {{$cur := "" }}{{if .Event}}{{$cur = .Event.Action}}{{end}}
+        {{range .Catalog}}
+          <option value="{{.Key}}" {{if eq .Key $cur}}selected{{end}}>{{.Label}}</option>
+        {{end}}
+      </select>
+    </div>
+    <ul class="sg-note">
+      {{range .Catalog}}<li><strong>{{.Label}}</strong> -- {{.Desc}}</li>{{end}}
+    </ul>
+    <div class="field">
+      <label for="e-time">time of day</label>
+      <input id="e-time" type="time" name="time_of_day" value="{{if .Event}}{{.Event.TimeOfDay}}{{end}}" required>
+    </div>
+    <div class="field field-check">
+      <label><input type="checkbox" name="enabled" value="1" {{if or (not .Event) .Event.Enabled}}checked{{end}}> enabled</label>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">{{if .Event}}save changes{{else}}create event{{end}}</button>
+      <a class="btn" href="/sysop/events">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

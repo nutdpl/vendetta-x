@@ -44,6 +44,7 @@ import (
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/render"
+	"vendetta-x/server/internal/schedule"
 	"vendetta-x/server/internal/social"
 	"vendetta-x/server/internal/sshface"
 	"vendetta-x/server/internal/store"
@@ -121,6 +122,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("bulletin: %v", err)
 	}
+	scheduleStore, err := schedule.New(st.DB())
+	if err != nil {
+		log.Fatalf("schedule: %v", err)
+	}
 
 	pres := newPresence()
 	bbs := &board{
@@ -130,6 +135,7 @@ func main() {
 		dragon:        dragonStore,
 		void:          voidStore,
 		bulletins:     bulletinStore,
+		events:        scheduleStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -150,6 +156,10 @@ func main() {
 	bbs.telnetLn, bbs.sshLn = telnetLn, sshLn
 	go bbs.serveTelnet(telnetLn)
 	go bbs.serveSSH(sshLn, *hostKey)
+
+	schedCtx, stopSched := context.WithCancel(context.Background())
+	defer stopSched()
+	go bbs.runScheduler(schedCtx)
 
 	useTLS := *tlsCert != "" && *tlsKey != ""
 	webCfg := web.Config{
@@ -286,6 +296,7 @@ type board struct {
 	dragon    *dragon.Store
 	void      *void.Store
 	bulletins *bulletin.Store
+	events    *schedule.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
