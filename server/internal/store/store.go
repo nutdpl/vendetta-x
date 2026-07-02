@@ -233,6 +233,13 @@ CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS lastread (
+	user_id     INTEGER NOT NULL,
+	board_id    INTEGER NOT NULL,
+	last_msg_id INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, board_id)
+);
 `
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("store: create schema: %w", err)

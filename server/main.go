@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -873,9 +874,11 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 			return nil
 		}
 
+		unread, _ := b.st.UnreadCounts(user.ID)
+
 		s.Print("\x1b[0m\x1b[2J\x1b[H")
 		s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m change message base\x1b[0m\r\n\r\n", boardName)
-		s.Print("\x1b[1;30m   #  \x1b[0;37mArea Title                    \x1b[1;30mMsgs  Last Post\x1b[0m\r\n")
+		s.Print("\x1b[1;30m   #  \x1b[0;37mArea Title                    \x1b[1;30mMsgs   New  Last Post\x1b[0m\r\n")
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 
 		for i := range boards {
@@ -883,16 +886,22 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 			n := i + 1
 			count := len(mustMessages(b, bd.ID))
 			if !acs.Eval(bd.ReadACS, subj) {
-				s.Printf("\x1b[1;30m  %2d  %-28s \x1b[31m[%s]\x1b[1;30m %4d  --\x1b[0m\r\n",
+				s.Printf("\x1b[1;30m  %2d  %-28s \x1b[31m[%s]\x1b[1;30m %4d     -  --\x1b[0m\r\n",
 					n, truncStr(bd.Name, 28), bd.ReadACS, count)
 				continue
+			}
+			// The qscan hook: how many messages are above this caller's read
+			// pointer, bright when there's something waiting.
+			nw := "\x1b[1;30m    -"
+			if u := unread[bd.ID]; u > 0 {
+				nw = fmt.Sprintf("\x1b[1;36m%5d", u)
 			}
 			last := "\x1b[1;30m--"
 			if recent := mustMessages(b, bd.ID); len(recent) > 0 {
 				last = "\x1b[1;36m" + recent[0].From + " \x1b[0;37m" + relTime(recent[0].Posted)
 			}
-			s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-28s \x1b[0;37m%4d  %s\x1b[0m\r\n",
-				n, truncStr(bd.Name, 28), count, last)
+			s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-28s \x1b[0;37m%4d %s\x1b[0;37m  %s\x1b[0m\r\n",
+				n, truncStr(bd.Name, 28), count, nw, last)
 		}
 
 		s.Print("\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m (\x1b[1;37mQ\x1b[0;37m to quit) \x1b[1;36m> \x1b[1;37m")
@@ -914,36 +923,78 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 	}
 }
 
-// newScan lists the most recent messages across every base the caller can read
-// (the Iniquity [N]ew scan).
+// newScan is the qscan new-message scan: it walks every base the caller can
+// read, resumes at their read pointer, and steps through what arrived since --
+// oldest first, so an argument reads in order. Every message shown advances
+// the pointer, so tomorrow's scan starts where tonight's ended. [S] skips a
+// base (leaving it new for next time), [Q]/Esc leaves the whole scan.
 func (b *board) newScan(s *term.Session, user *store.User) {
 	subj := subjectOf(user)
 	boards, _ := b.st.Boards()
-	readable := map[int64]string{}
-	for i := range boards {
-		if acs.Eval(boards[i].ReadACS, subj) {
-			readable[boards[i].ID] = boards[i].Name
+
+	sawAny := false
+	for bi := range boards {
+		bd := &boards[bi]
+		if !acs.Eval(bd.ReadACS, subj) {
+			continue
+		}
+		ptr, err := b.st.LastRead(user.ID, bd.ID)
+		if err != nil {
+			continue
+		}
+		msgs, err := b.st.MessagesAfter(bd.ID, ptr)
+		if err != nil || len(msgs) == 0 {
+			continue
+		}
+		sawAny = true
+		canPost := acs.Eval(bd.PostACS, subj)
+
+		// A beat between bases: which base, how much is waiting.
+		s.Print("\x1b[0m\x1b[2J\x1b[H")
+		s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m new scan \x1b[1;30m\xfa\x1b[1;37m %s\x1b[0m\r\n", boardName, bd.Name)
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
+		s.Printf("  \x1b[1;36m%d\x1b[0;37m new %s here. \x1b[1;30mAny key reads \xfa [\x1b[1;37mS\x1b[1;30m]kip base \xfa [\x1b[1;37mQ\x1b[1;30m]uit scan\x1b[0m ",
+			len(msgs), plural(len(msgs), "message", "messages"))
+		s.Flush()
+		k, ch := s.ReadKey()
+		if k == term.KeyEsc || k == term.KeyEOF || (k == term.KeyChar && lc(ch) == 'q') {
+			return
+		}
+		if k == term.KeyChar && lc(ch) == 's' {
+			continue
+		}
+
+		i := 0
+	scanBase:
+		for {
+			b.showMessage(s, bd, msgs, i, canPost)
+			_ = b.st.SetLastRead(user.ID, bd.ID, msgs[i].ID)
+			k, ch := s.ReadKey()
+			switch {
+			case k == term.KeyEsc, k == term.KeyEOF, k == term.KeyChar && lc(ch) == 'q':
+				return
+			case k == term.KeyRight, k == term.KeyDown, k == term.KeyEnter,
+				k == term.KeyChar && (lc(ch) == 'n' || ch == ' '):
+				if i < len(msgs)-1 {
+					i++
+				} else {
+					break scanBase // past the last new message: next base
+				}
+			case k == term.KeyLeft, k == term.KeyUp, k == term.KeyChar && lc(ch) == 'p':
+				if i > 0 {
+					i--
+				}
+			case canPost && k == term.KeyChar && lc(ch) == 'r':
+				b.postReply(s, bd, user, msgs[i])
+			}
 		}
 	}
 
-	msgs, _ := b.st.RecentMessages(40)
-	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m new messages\x1b[0m\r\n", boardName)
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
-	shown := 0
-	for _, m := range msgs {
-		base, ok := readable[m.BoardID]
-		if !ok {
-			continue
-		}
-		s.Printf("  \x1b[1;33m%-14s \x1b[1;37m%-28s \x1b[1;36m%-12s \x1b[0;37m%s\x1b[0m\r\n",
-			truncStr(base, 14), truncStr(m.Subject, 28), truncStr(m.From, 12), relTime(m.Posted))
-		shown++
+	if !sawAny {
+		s.Notice("Nothing new across your bases -- you're all caught up.")
+		return
 	}
-	if shown == 0 {
-		s.Print("\x1b[0;37m  Nothing new across your bases.\x1b[0m\r\n")
-	}
-	s.Pause()
+	s.Notice("New scan complete.")
 }
 
 // mustMessages returns a board's messages newest-first (nil on error), a small
@@ -1009,9 +1060,25 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 
 	// Read one message at a time, Iniquity-style: a framed header (group, sender,
 	// subject, date) over the body, with prev/next/reply/quit navigation.
+	//
+	// Resume where the caller left off: if they've read this base before and
+	// messages arrived since, open on the oldest unread instead of the newest.
+	// msgs is newest-first, so the oldest unread is the highest index above
+	// the read pointer.
 	i := 0
+	if ptr, err := b.st.LastRead(user.ID, bd.ID); err == nil && ptr > 0 {
+		for j := len(msgs) - 1; j >= 0; j-- {
+			if msgs[j].ID > ptr {
+				i = j
+				break
+			}
+		}
+	}
 	for {
 		b.showMessage(s, bd, msgs, i, canPost)
+		// Seeing a message advances the qscan pointer (monotonically, so
+		// paging back through old mail never resurrects it as "new").
+		_ = b.st.SetLastRead(user.ID, bd.ID, msgs[i].ID)
 		k, ch := s.ReadKey()
 		switch {
 		case k == term.KeyEsc, k == term.KeyEOF, k == term.KeyChar && lc(ch) == 'q':

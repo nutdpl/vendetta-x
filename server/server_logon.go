@@ -1,6 +1,7 @@
 package main
 
 import (
+	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
 )
@@ -26,6 +27,31 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 			dateOr(user.LastCall), relTime(user.LastCall))
 	}
 	s.Printf("  \x1b[1;30mCall no. \x1b[0;37m\xb7 \x1b[1;37m#%d\x1b[0m\r\n", user.Calls+1)
+
+	// The front-porch numbers a regular actually wants on arrival: what's new
+	// since their read pointers, and whether anyone wrote to them directly.
+	if counts, err := b.st.UnreadCounts(user.ID); err == nil {
+		subj := subjectOf(user)
+		boards, _ := b.st.Boards()
+		total, bases := 0, 0
+		for i := range boards {
+			if n := counts[boards[i].ID]; n > 0 && acs.Eval(boards[i].ReadACS, subj) {
+				total += n
+				bases++
+			}
+		}
+		if total > 0 {
+			s.Printf("  \x1b[1;30mNew msgs \x1b[0;37m\xb7 \x1b[1;36m%d\x1b[0;37m in %d %s \x1b[1;30m-- [N]ew scan reads them\x1b[0m\r\n",
+				total, bases, plural(bases, "base", "bases"))
+		} else {
+			s.Print("  \x1b[1;30mNew msgs \x1b[0;37m\xb7 \x1b[1;30mnone -- all caught up\x1b[0m\r\n")
+		}
+	}
+	if b.st.FeatureEnabled("email") {
+		if n, err := b.mail.UnreadCount(user.Handle); err == nil && n > 0 {
+			s.Printf("  \x1b[1;30mMail     \x1b[0;37m\xb7 \x1b[1;33m%d unread\x1b[0m\r\n", n)
+		}
+	}
 
 	s.Print("\r\n\x1b[0;37m  Quick logon? \x1b[1;30m(\x1b[1;37mY\x1b[1;30m skips to the menu, \x1b[1;37mN\x1b[1;30m takes the tour) \x1b[1;36m[\x1b[1;37my/\x1b[1;33mN\x1b[1;36m] \x1b[1;37m")
 	s.Flush()

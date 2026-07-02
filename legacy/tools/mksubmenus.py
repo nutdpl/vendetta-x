@@ -21,18 +21,25 @@ from dither import bottom_bar_lines, build_chrome  # noqa: E402
 FONT_FILE = os.path.join(ROOT, "art", "fonts", "CYBRCRME.TDF")
 COLS = 80
 
-# name, TITLE word, subtitle, [(hotkey, label)]
+MIDDOT = bytes([0xFA]).decode("cp437")   # · label/value separator
+
+# name, TITLE word, subtitle, current-marker token, [(hotkey, label)].
+# The hotkeys are the COMMAND set main.go's messageMenu/fileMenu switch on:
+# these menus operate on a "current" base/area (spliced in live through the
+# |MB / |FA data token), with [A] opening the numbered area picker. They are
+# not area lists themselves -- hardcoding the seeded area names here once
+# left Read/Post/New unreachable on the live board.
 MENUS = [
-    ("msgmenu", "MESSAGES", "message bases", [
-        ("G", "General Chat"), ("W", "Warez Talk"),
-        ("S", "The Scene"), ("Q", "Back to Main")]),
-    ("filemenu", "FILES", "file areas", [
-        ("W", "Warez Vault"), ("U", "Utilities"),
-        ("A", "ANSI & Art"), ("Q", "Back to Main")]),
+    ("msgmenu", "MESSAGES", "message bases", "MB", [
+        ("R", "Read Messages"), ("P", "Post Message"),
+        ("N", "New Scan"), ("A", "Change Base"), ("Q", "Back to Main")]),
+    ("filemenu", "FILES", "file areas", "FA", [
+        ("L", "List & Download"), ("N", "New Files"),
+        ("A", "Change Area"), ("Q", "Back to Main")]),
 ]
 
 
-def build(seed, name, title, subtitle, opts):
+def build(seed, name, title, subtitle, token, opts):
     random.seed(seed)
     chrome, h = build_chrome(title, FONT_FILE, "Cybercrime", subtitle, cols=COLS,
                               environment=True, ice=True)
@@ -43,7 +50,11 @@ def build(seed, name, title, subtitle, opts):
     for i, (key, label) in enumerate(opts):
         out.append("|{%d,%d,%s,%s}" % (base + i, ocol, key, label))
 
-    bar_y = base + len(opts) + 1
+    # The live "where am I" line: which base/area the commands act on.
+    cur_y = base + len(opts) + 1
+    out.append("|[Y%d|[X%d|08current %s |15|%s" % (cur_y, ocol, MIDDOT, token))
+
+    bar_y = cur_y + 2
     bar = bottom_bar_lines(COLS, ice=True)
     out.append("|[Y%d" % bar_y + bar[0])
     out.append(bar[1])
@@ -60,8 +71,8 @@ def build(seed, name, title, subtitle, opts):
 
 
 def main():
-    for i, (name, title, subtitle, opts) in enumerate(MENUS):
-        build(19 + i, name, title, subtitle, opts)
+    for i, (name, title, subtitle, token, opts) in enumerate(MENUS):
+        build(19 + i, name, title, subtitle, token, opts)
 
 
 if __name__ == "__main__":

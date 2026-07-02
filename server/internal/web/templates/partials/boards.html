@@ -23,6 +23,7 @@
       {{else}}
         {{template "c-badge" (dict "label" "open" "variant" "dim")}}
       {{end}}
+      {{if .New}}{{template "c-badge" (dict "label" (printf "%d new" .New) "variant" "cyan")}}{{end}}
       {{template "c-badge" (dict "label" (printf "%d %s" .Count (plural .Count "msg" "msgs")) "variant" "dim")}}
     </span>
   </div>

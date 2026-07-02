@@ -8,6 +8,24 @@ semantic versioning.
 
 ### Added
 
+- **Read pointers (the classic qscan).** The board now remembers, per caller
+  per base, the last message read. The reader resumes at the oldest unread
+  message and advances the pointer as you go; **[N]ew scan** walks every base
+  you can read and steps through only what arrived since your last visit
+  (skip a base, quit anytime, reply in place). The base picker grew a **New**
+  column, the logon greeting counts what's waiting ("3 new in 2 bases", plus
+  unread private mail), and on the web the board index shows **"n new"**
+  badges with viewing a board catching you up. One pointer store drives all
+  three faces.
+
+### Fixed
+
+- The message and file submenus' lightbars carried hardcoded seeded area
+  names instead of the command set the board acts on, leaving Read / Post /
+  New Scan (and List & Download / New Files) unreachable from the menu.
+  Regenerated both screens with the real commands plus a live
+  "current · base" line so callers can see what they're acting on.
+
 - A cinematic **connect entrance**. Every caller (telnet and ssh) now lands on a
   short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), then the
   **flagship loginscreen** -- a full 80x30 piece that scrolls as it paints: a

@@ -11,11 +11,13 @@ import (
 	"vendetta-x/server/internal/store"
 )
 
-// boardCard pairs a board with its message count and most-recent post, so the
-// index can show activity at a glance without the template touching the store.
+// boardCard pairs a board with its message count, most-recent post, and the
+// viewer's unread count, so the index can show activity at a glance without
+// the template touching the store.
 type boardCard struct {
 	Board   store.Board
 	Count   int
+	New     int
 	Last    store.Message
 	HasLast bool
 }
@@ -27,6 +29,17 @@ func (s *server) boards(w http.ResponseWriter, r *http.Request) {
 		log.Printf("web: Boards: %v", err)
 	}
 
+	// Per-viewer unread counts (the qscan pointers) light up the "new" badges;
+	// an anonymous visitor just doesn't get them.
+	var unread map[int64]int
+	u := s.currentUser(r)
+	if u != nil {
+		if unread, err = s.st.UnreadCounts(u.ID); err != nil {
+			log.Printf("web: UnreadCounts: %v", err)
+		}
+	}
+	subj := acsSubjectOf(u)
+
 	cards := make([]boardCard, 0, len(bs))
 	for _, b := range bs {
 		c := boardCard{Board: b}
@@ -35,6 +48,9 @@ func (s *server) boards(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: Messages: %v", err)
 		}
 		c.Count = len(msgs)
+		if u != nil && acs.Eval(b.ReadACS, subj) {
+			c.New = unread[b.ID]
+		}
 		if len(msgs) > 0 {
 			// Messages returns newest-first, so the first row is the latest.
 			c.Last = msgs[0]
@@ -70,6 +86,13 @@ func (s *server) board(w http.ResponseWriter, r *http.Request) {
 		var err error
 		if msgs, err = s.st.Messages(id, 50); err != nil {
 			log.Printf("web: Messages: %v", err)
+		}
+		// Viewing the board catches the caller up: advance their qscan pointer
+		// to the newest message shown (monotonic, so a stale tab can't rewind).
+		if base.User != nil && len(msgs) > 0 {
+			if err := s.st.SetLastRead(base.User.ID, id, msgs[0].ID); err != nil {
+				log.Printf("web: SetLastRead: %v", err)
+			}
 		}
 	}
 
