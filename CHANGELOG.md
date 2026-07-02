@@ -8,6 +8,15 @@ semantic versioning.
 
 ### Added
 
+- **Threaded replies with classic auto-quote.** Replying now opens the editor
+  on the original, `Handle>`-quoted (wrapped, capped, cursor underneath), and
+  the post remembers what it answers. The reader footer grows **[T]hread** on
+  any reply -- one key walks up to the original. Private mail replies quote
+  the same way. On the web, boards render as real threads (replies hang
+  indented under their post with a "re:" credit), every message has a
+  **reply** link that prefills the quoted form, and a forged/stale reply id
+  safely posts as a fresh thread root.
+
 - **Read pointers (the classic qscan).** The board now remembers, per caller
   per base, the last message read. The reader resumes at the oldest unread
   message and advances the pointer as you go; **[N]ew scan** walks every base

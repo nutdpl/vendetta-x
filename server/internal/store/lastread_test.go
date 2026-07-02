@@ -51,6 +51,38 @@ func TestLastReadPointer(t *testing.T) {
 	}
 }
 
+func TestReplyToRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Seed(); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	boards, _ := s.Boards()
+	bd := boards[0].ID
+
+	root := post(t, s, bd, "root")
+	reply, err := s.PostMessage(&Message{
+		BoardID: bd, From: "phantom", To: "nut", Subject: "Re: root",
+		Body: "nut> quoted\n\nagreed", Posted: time.Now(), ReplyTo: root,
+	})
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+
+	m, err := s.MessageByID(reply)
+	if err != nil || m == nil {
+		t.Fatalf("MessageByID: %v, %v", m, err)
+	}
+	if m.ReplyTo != root {
+		t.Fatalf("ReplyTo = %d, want %d", m.ReplyTo, root)
+	}
+	if r, _ := s.MessageByID(root); r == nil || r.ReplyTo != 0 {
+		t.Fatalf("root ReplyTo should be 0, got %+v", r)
+	}
+	if missing, err := s.MessageByID(999999); err != nil || missing != nil {
+		t.Fatalf("missing message should be nil,nil; got %v, %v", missing, err)
+	}
+}
+
 func TestUnreadCountsAndMessagesAfter(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.Seed(); err != nil {

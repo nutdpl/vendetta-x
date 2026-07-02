@@ -984,6 +984,12 @@ func (b *board) newScan(s *term.Session, user *store.User) {
 				if i > 0 {
 					i--
 				}
+			case k == term.KeyChar && lc(ch) == 't':
+				if j := threadParent(msgs, msgs[i]); j >= 0 {
+					i = j
+				} else if msgs[i].ReplyTo != 0 {
+					s.Notice("The original isn't among the new messages.")
+				}
 			case canPost && k == term.KeyChar && lc(ch) == 'r':
 				b.postReply(s, bd, user, msgs[i])
 			}
@@ -1092,6 +1098,13 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 			if i > 0 {
 				i--
 			}
+		case k == term.KeyChar && lc(ch) == 't':
+			// Walk up the thread to the message this one replies to.
+			if j := threadParent(msgs, msgs[i]); j >= 0 {
+				i = j
+			} else if msgs[i].ReplyTo != 0 {
+				s.Notice("The original has scrolled out of this window.")
+			}
 		case canPost && k == term.KeyChar && lc(ch) == 'r':
 			b.postReply(s, bd, user, msgs[i])
 		}
@@ -1100,14 +1113,16 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 
 // postMessage composes a fresh public message addressed to All.
 func (b *board) postMessage(s *term.Session, bd *store.Board, user *store.User) {
-	b.compose(s, bd, user, "All", "")
+	b.compose(s, bd, user, "All", "", nil)
 }
 
 // compose runs the subject prompt + full-screen body editor and posts the
 // result. toDefault is the recipient (All for public posts, the original sender
 // for a reply); subjDefault pre-fills the subject (blank for a new message,
-// "Re: ..." for a reply) and is kept if the caller just presses enter.
-func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDefault, subjDefault string) {
+// "Re: ..." for a reply) and is kept if the caller just presses enter. A
+// non-nil parent makes this a threaded reply: the editor opens with the
+// original >-quoted and the post carries the parent's id.
+func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDefault, subjDefault string, parent *store.Message) {
 	if subjDefault != "" {
 		s.Printf("\r\n\x1b[0;37m  Subject \x1b[1;30m[%s]\x1b[0;37m: \x1b[1;37m", subjDefault)
 	} else {
@@ -1130,7 +1145,17 @@ func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDe
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	s.Flush()
 
-	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, nil)
+	// A reply opens on the original, >-quoted, cursor underneath.
+	var prefill []string
+	var replyTo int64
+	if parent != nil {
+		prefill = quoteLines(parent.From, parent.Body, 72)
+		replyTo = parent.ID
+	}
+	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, prefill)
+	if len(prefill) > 0 {
+		ed.CursorEnd() // open under the quote, not on top of it
+	}
 	lines, saved := ed.Run()
 	// Restore a clean cursor/attr state after the editor.
 	s.Print("\x1b[0m\x1b[24;1H\r\n")
@@ -1153,6 +1178,7 @@ func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDe
 		Subject: subj,
 		Body:    body,
 		Posted:  time.Now(),
+		ReplyTo: replyTo,
 	}); err != nil {
 		s.Notice("Could not post your message.")
 		return

@@ -560,6 +560,12 @@ table th.num, table td.num { text-align: right; font-variant-numeric: tabular-nu
   font: inherit;
   line-height: 1.6;
 }
+/* A threaded reply hangs indented under its root, cyan-edged instead of red. */
+.msg-reply {
+  margin-left: var(--s6);
+  border-left-color: rgba(54,230,240,0.45);
+}
+.msg-re { color: var(--ink-faint); font-size: var(--fz-sm); }
 
 
 /* === 12. BOARD CARD ====================================================== */

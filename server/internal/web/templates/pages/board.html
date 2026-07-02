@@ -28,19 +28,21 @@
   {{if .CanRead}}
     <section class="panel">
       <h3 class="ph">thread</h3>
-      {{if .Messages}}
+      {{if .Nodes}}
         <div class="thread">
-          {{range .Messages}}
-            <article class="msg">
+          {{range .Nodes}}
+            <article class="msg{{if .Reply}} msg-reply{{end}}" id="msg-{{.ID}}">
               <header class="msg-head">
                 <span class="who">
                   {{template "c-avatar" (dict "handle" .From)}}
                   <span class="msg-subj">{{.Subject}}</span>
+                  {{if .Reply}}<span class="msg-re">&#8627; re: {{.ParentFrom}}</span>{{end}}
                 </span>
                 <span class="msg-meta">
                   from <a href="/users/{{.From}}"><b>{{.From}}</b></a>
                   {{- if .To}} to <b>{{.To}}</b>{{end}}
                   &middot; {{fdate .Posted}} &middot; {{since .Posted}}
+                  {{if $.CanPost}} &middot; <a href="/boards/{{$.ID}}?re={{.ID}}#postform">reply</a>{{end}}
                 </span>
               </header>
               <div class="msg-body">{{nlbr .Body}}</div>
@@ -52,15 +54,20 @@
       {{end}}
 
       {{if .CanPost}}
-        <form class="postform" method="post" action="/boards/{{.ID}}">
-          <h3 class="ph">post as <span class="acct-handle">{{.User.Handle}}</span></h3>
+        <form class="postform" id="postform" method="post" action="/boards/{{.ID}}">
+          {{if .Reply}}
+            <h3 class="ph">reply to <span class="acct-handle">{{.Reply.From}}</span> as <span class="acct-handle">{{.User.Handle}}</span></h3>
+            <input type="hidden" name="reply_to" value="{{.Reply.ID}}">
+          {{else}}
+            <h3 class="ph">post as <span class="acct-handle">{{.User.Handle}}</span></h3>
+          {{end}}
           <div class="field">
             <label for="board-subject">subject</label>
-            <input id="board-subject" type="text" name="subject" maxlength="80" autocomplete="off" placeholder="subject">
+            <input id="board-subject" type="text" name="subject" maxlength="80" autocomplete="off" placeholder="subject" value="{{.ReplySubj}}">
           </div>
           <div class="field">
             <label for="board-body">body</label>
-            <textarea id="board-body" name="body" rows="6" placeholder="say something..." required></textarea>
+            <textarea id="board-body" name="body" rows="{{if .Reply}}12{{else}}6{{end}}" placeholder="say something..." required{{if .Reply}} autofocus{{end}}>{{.ReplyQuote}}</textarea>
           </div>
           <button class="btn btn-primary" type="submit">transmit</button>
         </form>
