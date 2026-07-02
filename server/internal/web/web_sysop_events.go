@@ -70,17 +70,24 @@ func (s *server) sysopEventSave(w http.ResponseWriter, r *http.Request) {
 	action := r.FormValue("action")
 	timeOfDay := strings.TrimSpace(r.FormValue("time_of_day"))
 	enabled := r.FormValue("enabled") != ""
+	// Interval mode: a positive "every N minutes" overrides the daily time.
+	interval := 0
+	if raw := strings.TrimSpace(r.FormValue("interval_min")); raw != "" {
+		interval = clampRange(raw, 0, 0, 10080) // at most weekly
+	}
 
 	back := "/sysop/events/new"
 	if id > 0 {
 		back = "/sysop/events/" + r.FormValue("id") + "/edit"
 	}
-	if name == "" || !knownAction(action) || !validTimeOfDay(timeOfDay) {
+	// An event needs a name, a known action, and a valid schedule: either an
+	// interval or a well-formed daily time.
+	if name == "" || !knownAction(action) || (interval <= 0 && !validTimeOfDay(timeOfDay)) {
 		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 
-	e := &schedule.Event{ID: id, Name: name, Action: action, TimeOfDay: timeOfDay, Enabled: enabled}
+	e := &schedule.Event{ID: id, Name: name, Action: action, TimeOfDay: timeOfDay, Interval: interval, Enabled: enabled}
 	if id > 0 {
 		if err := s.events.Update(e); err != nil {
 			log.Printf("web: sysop event Update: %v", err)

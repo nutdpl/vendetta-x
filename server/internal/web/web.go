@@ -205,6 +205,11 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/bulletins", s.admin(s.sysopBulletinSave))
 	mux.HandleFunc("POST /sysop/bulletins/{id}/delete", s.admin(s.sysopBulletinDelete))
 
+	// qwk networking (settings + run-now)
+	mux.HandleFunc("GET /sysop/qwknet", s.admin(s.sysopQwknet))
+	mux.HandleFunc("POST /sysop/qwknet", s.admin(s.sysopQwknetSave))
+	mux.HandleFunc("POST /sysop/qwknet/run", s.admin(s.sysopQwknetRun))
+
 	// scheduled events (CRUD)
 	mux.HandleFunc("GET /sysop/events", s.admin(s.sysopEvents))
 	mux.HandleFunc("GET /sysop/events/new", s.admin(s.sysopEventForm))

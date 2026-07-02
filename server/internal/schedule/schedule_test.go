@@ -24,7 +24,7 @@ func TestCRUD(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	id, err := s.Add(&Event{Name: "Nightly purge", Action: "messages.purge_old", TimeOfDay: "03:00", Enabled: true})
+	id, err := s.Add(&Event{Name: "Nightly purge", Action: "messages.purge_old", TimeOfDay: "03:00", Enabled: true, Interval: 45})
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestCRUD(t *testing.T) {
 	if err != nil || got == nil {
 		t.Fatalf("Get: %v, %v", got, err)
 	}
-	if got.Name != "Nightly purge" || got.Action != "messages.purge_old" || got.TimeOfDay != "03:00" || !got.Enabled {
+	if got.Name != "Nightly purge" || got.Action != "messages.purge_old" || got.TimeOfDay != "03:00" || !got.Enabled || got.Interval != 45 {
 		t.Fatalf("Get returned wrong event: %+v", got)
 	}
 	if !got.LastRun.IsZero() {
@@ -145,6 +145,36 @@ func TestDueAt(t *testing.T) {
 		{
 			name: "out of range hour",
 			e:    Event{Enabled: true, TimeOfDay: "25:00"},
+			now:  at(12, 0),
+			want: false,
+		},
+		{
+			name: "interval, never run: due immediately",
+			e:    Event{Enabled: true, Interval: 60},
+			now:  at(0, 1),
+			want: true,
+		},
+		{
+			name: "interval not yet elapsed",
+			e:    Event{Enabled: true, Interval: 60, LastRun: at(10, 0)},
+			now:  at(10, 59),
+			want: false,
+		},
+		{
+			name: "interval elapsed exactly",
+			e:    Event{Enabled: true, Interval: 60, LastRun: at(10, 0)},
+			now:  at(11, 0),
+			want: true,
+		},
+		{
+			name: "interval wins over a bogus time of day",
+			e:    Event{Enabled: true, Interval: 30, TimeOfDay: "garbage", LastRun: at(9, 0)},
+			now:  at(9, 45),
+			want: true,
+		},
+		{
+			name: "interval disabled",
+			e:    Event{Enabled: false, Interval: 5},
 			now:  at(12, 0),
 			want: false,
 		},

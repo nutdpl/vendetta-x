@@ -25,7 +25,12 @@
     </ul>
     <div class="field">
       <label for="e-time">time of day</label>
-      <input id="e-time" type="time" name="time_of_day" value="{{if .Event}}{{.Event.TimeOfDay}}{{end}}" required>
+      <input id="e-time" type="time" name="time_of_day" value="{{if .Event}}{{.Event.TimeOfDay}}{{end}}">
+    </div>
+    <div class="field">
+      <label for="e-interval">or run every N minutes</label>
+      <input id="e-interval" type="number" name="interval_min" min="0" max="10080" value="{{if .Event}}{{if .Event.Interval}}{{.Event.Interval}}{{end}}{{end}}">
+      <p class="sg-note">Leave blank (or 0) for a once-daily event at the time above. An interval overrides the daily time -- use it for mail-network polls.</p>
     </div>
     <div class="field field-check">
       <label><input type="checkbox" name="enabled" value="1" {{if or (not .Event) .Event.Enabled}}checked{{end}}> enabled</label>

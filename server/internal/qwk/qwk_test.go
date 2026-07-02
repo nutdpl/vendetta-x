@@ -247,3 +247,150 @@ func TestBuildThenParseConferences(t *testing.T) {
 		t.Errorf("conference at offset 123 = %d, want 5", conf)
 	}
 }
+
+// TestParseFullPacket runs the hub direction: Build a .QWK, then Parse it back
+// and verify messages (with dates) and the conference list survive.
+func TestParseFullPacket(t *testing.T) {
+	when := time.Date(2026, 6, 30, 14, 45, 0, 0, time.Local)
+	p := Packet{
+		BoardName: "Hub of the North",
+		Sysop:     "hubop",
+		Caller:    "VENDX",
+		Conferences: []Conference{
+			{Number: 1, Name: "NET_GENERAL"},
+			{Number: 4, Name: "NET_SYSOP"},
+		},
+		Messages: []Message{
+			{Conference: 1, To: "All", From: "remote guy", Subject: "hi from afar",
+				Body: "First networked post.\nSecond line.", Date: when},
+			{Conference: 4, To: "All", From: "hubop", Subject: "netiquette",
+				Body: "Be cool.", Date: when.Add(30 * time.Minute)},
+		},
+	}
+	data, err := Build(p)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	got, err := Parse(data)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if got.BoardName != "Hub of the North" {
+		t.Errorf("BoardName = %q", got.BoardName)
+	}
+	if len(got.Conferences) != 2 ||
+		got.Conferences[0] != (Conference{1, "NET_GENERAL"}) ||
+		got.Conferences[1] != (Conference{4, "NET_SYSOP"}) {
+		t.Errorf("Conferences = %+v", got.Conferences)
+	}
+	if len(got.Messages) != 2 {
+		t.Fatalf("got %d messages, want 2", len(got.Messages))
+	}
+	m := got.Messages[0]
+	if m.Conference != 1 || m.From != "remote guy" || m.Subject != "hi from afar" {
+		t.Errorf("msg0 = %+v", m)
+	}
+	if m.Body != "First networked post.\nSecond line." {
+		t.Errorf("msg0 body = %q", m.Body)
+	}
+	// The header only carries minute precision; both parse back exactly here.
+	if !m.Date.Equal(when) {
+		t.Errorf("msg0 date = %v, want %v", m.Date, when)
+	}
+	if !got.Messages[1].Date.Equal(when.Add(30 * time.Minute)) {
+		t.Errorf("msg1 date = %v", got.Messages[1].Date)
+	}
+}
+
+// TestParseWithoutControl: a packet missing CONTROL.DAT still yields messages.
+func TestParseWithoutControl(t *testing.T) {
+	var data bytes.Buffer
+	data.Write(identBlock("SOMEHUB"))
+	m := Message{Conference: 9, To: "All", From: "x", Subject: "s", Body: "b"}
+	body := encodeBody(m.Body)
+	data.Write(messageHeader(m, 1, 2))
+	data.Write(body)
+	data.Write(spaces(blockSize - len(body)))
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	if err := writeZipFile(zw, "messages.dat", data.Bytes()); err != nil { // lower-case on purpose
+		t.Fatalf("write: %v", err)
+	}
+	zw.Close()
+
+	got, err := Parse(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(got.Messages) != 1 || got.Messages[0].Conference != 9 {
+		t.Fatalf("messages = %+v", got.Messages)
+	}
+	if len(got.Conferences) != 0 || got.BoardName != "" {
+		t.Errorf("expected empty control data, got %q %+v", got.BoardName, got.Conferences)
+	}
+}
+
+// TestBuildReply checks the REP layout: <HUBID>.MSG member, hub id in record 0,
+// conference in BOTH the ASCII message-number field and the binary field, and
+// that our own ParseReply-style block walk recovers the messages.
+func TestBuildReply(t *testing.T) {
+	when := time.Date(2026, 7, 1, 9, 30, 0, 0, time.Local)
+	msgs := []Message{
+		{Conference: 2001, To: "All", From: "nut", Subject: "hello net",
+			Body: "Greetings from Vendetta/X.\nCome visit.", Date: when},
+		{Conference: 2002, To: "hubop", From: "razor", Subject: "question",
+			Body: "How do I subscribe more echoes?", Date: when},
+	}
+	zipBytes, err := BuildReply("thehub", msgs)
+	if err != nil {
+		t.Fatalf("BuildReply: %v", err)
+	}
+
+	files := unzip(t, zipBytes)
+	data, ok := files["THEHUB.MSG"]
+	if !ok {
+		t.Fatalf("missing THEHUB.MSG; members: %v", keys(files))
+	}
+	if len(data)%blockSize != 0 {
+		t.Fatalf("length %d not block-aligned", len(data))
+	}
+	if id := strings.TrimSpace(string(data[:blockSize])); id != "THEHUB" {
+		t.Errorf("record 0 ident = %q, want THEHUB", id)
+	}
+
+	hdr := data[blockSize : 2*blockSize]
+	if n := atoiField(hdr[1:8]); n != 2001 {
+		t.Errorf("ASCII message-number field = %d, want conference 2001", n)
+	}
+	if conf := getUint16LE(hdr, 123); conf != 2001 {
+		t.Errorf("binary conference = %d, want 2001", conf)
+	}
+
+	parsed, err := parseMessages(data)
+	if err != nil {
+		t.Fatalf("parseMessages: %v", err)
+	}
+	if len(parsed) != 2 {
+		t.Fatalf("parsed %d messages, want 2", len(parsed))
+	}
+	if parsed[0].From != "nut" || parsed[0].Body != "Greetings from Vendetta/X.\nCome visit." {
+		t.Errorf("msg0 = %+v", parsed[0])
+	}
+	if parsed[1].Conference != 2002 || !parsed[1].Date.Equal(when) {
+		t.Errorf("msg1 conference/date = %d %v", parsed[1].Conference, parsed[1].Date)
+	}
+
+	if _, err := BuildReply("  ", nil); err == nil {
+		t.Error("BuildReply with blank hub id should error")
+	}
+}
+
+func keys(m map[string][]byte) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}

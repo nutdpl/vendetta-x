@@ -18,12 +18,12 @@ import (
 // ---- domain types ----------------------------------------------------------
 
 type User struct {
-	ID                  int64
-	Handle, RealName    string
-	Email, Location     string
-	Tagline, Group      string
-	SL, DSL             int
-	Posts, Calls        int
+	ID               int64
+	Handle, RealName string
+	Email, Location  string
+	Tagline, Group   string
+	SL, DSL          int
+	Posts, Calls     int
 	// Upload/download accounting for the ratio economy.
 	Uploads, Downloads  int
 	UlBytes, DlBytes    int64
@@ -57,6 +57,10 @@ type Message struct {
 	ID, BoardID             int64
 	From, To, Subject, Body string
 	Posted                  time.Time
+	// Origin is the network a message arrived from ("" = posted locally).
+	// QWK-net export selects only local messages, so imports can never loop
+	// back out to the network they came from.
+	Origin string
 }
 
 type FileArea struct {
@@ -192,7 +196,8 @@ CREATE TABLE IF NOT EXISTS messages (
 	to_who    TEXT NOT NULL DEFAULT '',
 	subject   TEXT NOT NULL DEFAULT '',
 	body      TEXT NOT NULL DEFAULT '',
-	posted    INTEGER NOT NULL DEFAULT 0
+	posted    INTEGER NOT NULL DEFAULT 0,
+	origin    TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_messages_board ON messages (board_id, posted DESC);
 
@@ -247,6 +252,7 @@ CREATE TABLE IF NOT EXISTS settings (
 		`ALTER TABLE users ADD COLUMN downloads INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE users ADD COLUMN ul_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE users ADD COLUMN dl_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE messages ADD COLUMN origin TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, stmt := range addColumns {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -527,13 +533,17 @@ func (s *Store) Boards() ([]Board, error) {
 	return out, rows.Err()
 }
 
+// msgCols is the canonical column list every message query selects, matching
+// scanMessages' Scan order.
+const msgCols = `id, board_id, from_who, to_who, subject, body, posted, origin`
+
 func scanMessages(rows *sql.Rows) ([]Message, error) {
 	defer rows.Close()
 	var out []Message
 	for rows.Next() {
 		var m Message
 		var posted int64
-		if err := rows.Scan(&m.ID, &m.BoardID, &m.From, &m.To, &m.Subject, &m.Body, &posted); err != nil {
+		if err := rows.Scan(&m.ID, &m.BoardID, &m.From, &m.To, &m.Subject, &m.Body, &posted, &m.Origin); err != nil {
 			return nil, fmt.Errorf("store: messages scan: %w", err)
 		}
 		m.Posted = fromUnix(posted)
@@ -544,7 +554,7 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 
 // Messages returns a board's messages newest-first. limit<=0 means all.
 func (s *Store) Messages(boardID int64, limit int) ([]Message, error) {
-	q := `SELECT id, board_id, from_who, to_who, subject, body, posted
+	q := `SELECT ` + msgCols + `
 	      FROM messages WHERE board_id = ? ORDER BY posted DESC, id DESC`
 	var rows *sql.Rows
 	var err error
@@ -561,7 +571,7 @@ func (s *Store) Messages(boardID int64, limit int) ([]Message, error) {
 
 // RecentMessages returns the newest messages across all boards. limit<=0 means all.
 func (s *Store) RecentMessages(limit int) ([]Message, error) {
-	q := `SELECT id, board_id, from_who, to_who, subject, body, posted
+	q := `SELECT ` + msgCols + `
 	      FROM messages ORDER BY posted DESC, id DESC`
 	var rows *sql.Rows
 	var err error
@@ -576,19 +586,50 @@ func (s *Store) RecentMessages(limit int) ([]Message, error) {
 	return scanMessages(rows)
 }
 
+// LocalMessagesAfter returns a board's locally-posted messages (origin = ”)
+// with id > afterID, oldest first: the export feed for QWK networking. The
+// caller advances its high-water mark to the last returned id.
+func (s *Store) LocalMessagesAfter(boardID, afterID int64) ([]Message, error) {
+	rows, err := s.db.Query(
+		`SELECT `+msgCols+`
+		 FROM messages WHERE board_id = ? AND id > ? AND origin = ''
+		 ORDER BY id`, boardID, afterID)
+	if err != nil {
+		return nil, fmt.Errorf("store: local messages after %d: %w", afterID, err)
+	}
+	return scanMessages(rows)
+}
+
+// HasMessage reports whether a message with this exact board, author, subject,
+// and posted time already exists -- the dedup check QWK-net import runs before
+// posting, since QWK carries no message ids. It also catches our own posts
+// echoed back by the hub (they match the original row byte for byte).
+func (s *Store) HasMessage(boardID int64, from, subject string, posted time.Time) (bool, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM messages
+		 WHERE board_id = ? AND from_who = ? AND subject = ? AND posted = ?`,
+		boardID, sanitize.Line(from), sanitize.Line(subject), toUnix(posted)).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("store: has message: %w", err)
+	}
+	return n > 0, nil
+}
+
 func (s *Store) PostMessage(m *Message) (int64, error) {
 	m.From = sanitize.Line(m.From)
 	m.To = sanitize.Line(m.To)
 	m.Subject = sanitize.Line(m.Subject)
 	m.Body = sanitize.Text(m.Body)
+	m.Origin = sanitize.Line(m.Origin)
 	posted := m.Posted
 	if posted.IsZero() {
 		posted = time.Now()
 	}
 	res, err := s.db.Exec(
-		`INSERT INTO messages (board_id, from_who, to_who, subject, body, posted)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		m.BoardID, m.From, m.To, m.Subject, m.Body, toUnix(posted))
+		`INSERT INTO messages (board_id, from_who, to_who, subject, body, posted, origin)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		m.BoardID, m.From, m.To, m.Subject, m.Body, toUnix(posted), m.Origin)
 	if err != nil {
 		return 0, fmt.Errorf("store: post message: %w", err)
 	}

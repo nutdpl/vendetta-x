@@ -1,0 +1,57 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "qwknet")}}
+
+{{if .Saved}}<p class="form-error" style="border-color:var(--green);color:var(--green)">QWK-net settings saved.</p>{{end}}
+{{if .RunResult}}<p class="form-error" style="border-color:var(--green);color:var(--green)">Exchange ran: {{.RunResult}}</p>{{end}}
+
+<section class="panel">
+  <h2 class="ph">qwk networking</h2>
+  <p class="sg-note">Join a QWK message network: on each exchange the board uploads its new local posts as a .REP to the hub and imports the hub's .QWK packet, so mapped boards carry the whole network's traffic. Exchanges run over FTP (what Synchronet hubs carrying DOVE-Net and friends serve). Schedule regular exchanges with a "QWK-net exchange" <a href="/sysop/events">event</a> -- an interval of 60 minutes is typical.</p>
+
+  <form method="post" action="/sysop/qwknet" class="authform" autocomplete="off">
+    <div class="field field-check">
+      <label><input type="checkbox" name="enabled" value="1" {{if .Enabled}}checked{{end}}> enable qwk networking</label>
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="q-host">hub host (host or host:port)</label>
+        <input id="q-host" type="text" name="host" maxlength="120" value="{{.Host}}" placeholder="vert.synchro.net">
+      </div>
+      <div class="field">
+        <label for="q-hubid">hub BBSID</label>
+        <input id="q-hubid" type="text" name="hubid" maxlength="8" value="{{.HubID}}" placeholder="VERT">
+      </div>
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="q-user">hub account</label>
+        <input id="q-user" type="text" name="user" maxlength="40" value="{{.HubUser}}">
+      </div>
+      <div class="field">
+        <label for="q-pass">hub password</label>
+        <input id="q-pass" type="password" name="pass" maxlength="80" value="{{.HubPass}}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="q-net">network name (tags imported messages)</label>
+      <input id="q-net" type="text" name="netname" maxlength="16" value="{{.NetName}}" placeholder="DOVENET">
+    </div>
+    <div class="field">
+      <label for="q-map">conference map -- one "hub conference number = local board tag" per line</label>
+      <textarea id="q-map" name="confmap" rows="6" placeholder="# DOVE-Net general chat into the gen board&#10;2001 = gen">{{.ConfMap}}</textarea>
+      {{if .ConfErr}}<p class="form-error">{{.ConfErr}}</p>{{end}}
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">save settings</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2 class="ph">exchange</h2>
+  <p class="sg-note">last exchange: {{if .LastStatus}}{{.LastStatus}}{{else}}never{{end}}</p>
+  <form method="post" action="/sysop/qwknet/run">
+    <button class="btn" type="submit">run exchange now</button>
+  </form>
+</section>
+{{end}}

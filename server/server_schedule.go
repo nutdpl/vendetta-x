@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"vendetta-x/server/internal/qwknet"
 )
 
 // scheduledActions is the dispatch table for schedule.Catalog: every key in
@@ -32,6 +34,14 @@ var scheduledActions = map[string]func(b *board) error{
 		if n > 0 {
 			log.Printf("schedule: trimmed %d oneliner(s), kept %d most recent", n, keep)
 		}
+		return nil
+	},
+	"qwknet.exchange": func(b *board) error {
+		sum, err := qwknet.Exchange(b.st)
+		if err != nil {
+			return err
+		}
+		log.Printf("schedule: qwk-net exchange: %s", sum)
 		return nil
 	},
 }

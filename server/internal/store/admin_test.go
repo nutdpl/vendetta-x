@@ -175,6 +175,61 @@ func TestPurgeOldMessages(t *testing.T) {
 	_ = old
 }
 
+func TestLocalMessagesAfterAndHasMessage(t *testing.T) {
+	s := newTestStore(t)
+	boardID, err := s.AddBoard(&Board{Tag: "net", Name: "Networked"})
+	if err != nil {
+		t.Fatalf("AddBoard: %v", err)
+	}
+
+	when := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	local1, _ := s.PostMessage(&Message{BoardID: boardID, From: "nut", Subject: "local one", Posted: when})
+	if _, err := s.PostMessage(&Message{
+		BoardID: boardID, From: "remote guy", Subject: "imported", Posted: when, Origin: "DOVENET",
+	}); err != nil {
+		t.Fatalf("PostMessage imported: %v", err)
+	}
+	local2, _ := s.PostMessage(&Message{BoardID: boardID, From: "razor", Subject: "local two", Posted: when.Add(time.Minute)})
+
+	// Everything local, oldest first, imported message excluded.
+	got, err := s.LocalMessagesAfter(boardID, 0)
+	if err != nil {
+		t.Fatalf("LocalMessagesAfter: %v", err)
+	}
+	if len(got) != 2 || got[0].ID != local1 || got[1].ID != local2 {
+		t.Fatalf("export feed = %+v, want local ids %d,%d", got, local1, local2)
+	}
+
+	// High-water mark excludes already-exported rows.
+	got, _ = s.LocalMessagesAfter(boardID, local1)
+	if len(got) != 1 || got[0].ID != local2 {
+		t.Fatalf("after mark = %+v, want just %d", got, local2)
+	}
+
+	// Origin survives the round trip.
+	all, _ := s.Messages(boardID, 0)
+	var foundOrigin bool
+	for _, m := range all {
+		if m.Origin == "DOVENET" {
+			foundOrigin = true
+		}
+	}
+	if !foundOrigin {
+		t.Fatal("imported message lost its origin")
+	}
+
+	// Dedup check: exact (board, from, subject, posted) matches; others don't.
+	if ok, _ := s.HasMessage(boardID, "remote guy", "imported", when); !ok {
+		t.Fatal("HasMessage missed an existing message")
+	}
+	if ok, _ := s.HasMessage(boardID, "remote guy", "imported", when.Add(time.Second)); ok {
+		t.Fatal("HasMessage matched a different posted time")
+	}
+	if ok, _ := s.HasMessage(boardID, "someone else", "imported", when); ok {
+		t.Fatal("HasMessage matched a different author")
+	}
+}
+
 func TestTrimOneliners(t *testing.T) {
 	s := newTestStore(t)
 	base := time.Now()

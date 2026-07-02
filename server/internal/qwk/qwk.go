@@ -224,35 +224,23 @@ func decodeBody(raw []byte) string {
 const maxReplyBytes = 32 << 20 // 32 MiB
 
 func ParseReply(zipBytes []byte) ([]Message, error) {
+	return ParseReplyFor(BBSID, zipBytes)
+}
+
+// ParseReplyFor parses a reply packet addressed to the given BBSID (its
+// <bbsid>.MSG member). ParseReply is the common case; this form lets tests
+// and tools read packets built for another board (e.g. a hub's).
+func ParseReplyFor(bbsid string, zipBytes []byte) ([]Message, error) {
 	zr, err := zip.NewReader(bytes.NewReader(zipBytes), int64(len(zipBytes)))
 	if err != nil {
 		return nil, fmt.Errorf("qwk: open reply zip: %w", err)
 	}
-
-	var data []byte
-	wantUpper := strings.ToUpper(BBSID + ".MSG")
-	for _, f := range zr.File {
-		if strings.EqualFold(f.Name, BBSID+".MSG") ||
-			strings.ToUpper(baseName(f.Name)) == wantUpper {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, fmt.Errorf("qwk: open %s: %w", f.Name, err)
-			}
-			// Bound the decompressed read so a zip bomb (a tiny member that
-			// inflates to gigabytes) can't exhaust memory.
-			data, err = io.ReadAll(io.LimitReader(rc, maxReplyBytes+1))
-			rc.Close()
-			if err != nil {
-				return nil, fmt.Errorf("qwk: read %s: %w", f.Name, err)
-			}
-			if len(data) > maxReplyBytes {
-				return nil, errors.New("qwk: reply packet member too large")
-			}
-			break
-		}
+	data, err := readZipMember(zr, bbsid+".MSG")
+	if err != nil {
+		return nil, err
 	}
 	if data == nil {
-		return nil, errors.New("qwk: reply packet has no " + BBSID + ".MSG")
+		return nil, errors.New("qwk: reply packet has no " + bbsid + ".MSG")
 	}
 	return parseMessages(data)
 }
@@ -292,9 +280,148 @@ func parseMessages(data []byte) ([]Message, error) {
 			From:       trimField(header[46:71]),
 			Subject:    trimField(header[71:96]),
 			Body:       decodeBody(bodyRaw),
+			Date:       parseHeaderDate(header),
 		})
 	}
 	return out, nil
+}
+
+// parseHeaderDate recovers a message's date from the header's MM-DD-YY and
+// HH:MM fields. Some tools write the date with slashes; both separators are
+// accepted. A malformed date yields the zero time (callers substitute "now").
+func parseHeaderDate(header []byte) time.Time {
+	ds := strings.ReplaceAll(strings.TrimSpace(string(header[8:16])), "/", "-")
+	ts := strings.TrimSpace(string(header[16:21]))
+	if t, err := time.ParseInLocation("01-02-06 15:04", ds+" "+ts, time.Local); err == nil {
+		return t
+	}
+	if t, err := time.ParseInLocation("01-02-06", ds, time.Local); err == nil {
+		return t
+	}
+	return time.Time{}
+}
+
+// ---- QWK networking (hub exchange) -----------------------------------------
+//
+// A board federating over QWK-net plays the CALLER role against a hub BBS: it
+// uploads a .REP of its locally-posted messages and downloads a .QWK of the
+// network's new messages. That needs the two directions Build/ParseReply don't
+// cover: building a reply packet and parsing a full download.
+
+// BuildReply renders a .REP reply ZIP for the given hub: a single
+// <HUBID>.MSG member in MESSAGES.DAT layout whose record 0 carries the hub's
+// BBSID (hubs verify it). Each message's Conference must already be the HUB's
+// conference number. Per the de-facto REP convention, the conference is
+// written both as ASCII in the message-number field and in the binary
+// conference field, which satisfies both styles of hub-side parser.
+func BuildReply(hubID string, msgs []Message) ([]byte, error) {
+	hubID = strings.ToUpper(strings.TrimSpace(hubID))
+	if hubID == "" {
+		return nil, errors.New("qwk: reply packet needs a hub BBSID")
+	}
+
+	var out bytes.Buffer
+	out.Write(identBlock(hubID))
+
+	for _, m := range msgs {
+		body := encodeBody(m.Body)
+		bodyBlocks := (len(body) + blockSize - 1) / blockSize
+		if bodyBlocks == 0 {
+			bodyBlocks = 1
+		}
+		h := messageHeader(m, int(m.Conference), bodyBlocks+1)
+		out.Write(h)
+		padded := bodyBlocks * blockSize
+		out.Write(body)
+		out.Write(spaces(padded - len(body)))
+	}
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	if err := writeZipFile(zw, hubID+".MSG", out.Bytes()); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, fmt.Errorf("qwk: close reply zip: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// Parse reads a full .QWK download (the hub's MESSAGES.DAT, plus CONTROL.DAT
+// when present) and returns the packet's messages and conference list. It is
+// the inverse of Build, tolerant of the naming and layout quirks of other
+// packers: member names are matched case-insensitively, and a missing or
+// unreadable CONTROL.DAT just yields an empty conference list.
+func Parse(zipBytes []byte) (*Packet, error) {
+	zr, err := zip.NewReader(bytes.NewReader(zipBytes), int64(len(zipBytes)))
+	if err != nil {
+		return nil, fmt.Errorf("qwk: open packet zip: %w", err)
+	}
+
+	var p Packet
+	msgData, err := readZipMember(zr, "MESSAGES.DAT")
+	if err != nil {
+		return nil, err
+	}
+	if msgData == nil {
+		return nil, errors.New("qwk: packet has no MESSAGES.DAT")
+	}
+	if p.Messages, err = parseMessages(msgData); err != nil {
+		return nil, err
+	}
+
+	if ctl, _ := readZipMember(zr, "CONTROL.DAT"); ctl != nil {
+		p.BoardName, p.Conferences = parseControl(ctl)
+	}
+	return &p, nil
+}
+
+// readZipMember returns the named member's bytes (case-insensitive, basename
+// match allowed), nil when absent, or an error on a short/oversized read.
+func readZipMember(zr *zip.Reader, name string) ([]byte, error) {
+	wantUpper := strings.ToUpper(name)
+	for _, f := range zr.File {
+		if !strings.EqualFold(f.Name, name) &&
+			strings.ToUpper(baseName(f.Name)) != wantUpper {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("qwk: open %s: %w", f.Name, err)
+		}
+		data, err := io.ReadAll(io.LimitReader(rc, maxReplyBytes+1))
+		rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("qwk: read %s: %w", f.Name, err)
+		}
+		if len(data) > maxReplyBytes {
+			return nil, errors.New("qwk: packet member too large")
+		}
+		return data, nil
+	}
+	return nil, nil
+}
+
+// parseControl leniently recovers the board name and conference list from a
+// CONTROL.DAT. The fixed prefix is 12 lines (board name through max
+// conference number); after that, conferences arrive as number/name line
+// pairs until a line no longer parses as a number (the .NWS/HELLO trailers).
+func parseControl(data []byte) (boardName string, confs []Conference) {
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	if len(lines) > 0 {
+		boardName = strings.TrimSpace(lines[0])
+	}
+	for i := 12; i+1 < len(lines); i += 2 {
+		n, err := strconv.Atoi(strings.TrimSpace(lines[i]))
+		if err != nil || n < 0 || n > 65535 {
+			break
+		}
+		confs = append(confs, Conference{
+			Number: uint16(n),
+			Name:   strings.TrimSpace(lines[i+1]),
+		})
+	}
+	return boardName, confs
 }
 
 // ---- low-level field helpers ----

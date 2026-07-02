@@ -44,25 +44,39 @@ var Catalog = []ActionDef{
 		Label: "Trim the oneliner wall",
 		Desc:  "Keeps only the most recent oneliners, deleting the rest.",
 	},
+	{
+		Key:   "qwknet.exchange",
+		Label: "QWK-net exchange",
+		Desc:  "Uploads new local messages to the QWK network hub and imports the network's new messages. Configure the hub under sysop / qwk-net first.",
+	},
 }
 
-// Event is one scheduled action: run Action once a day at TimeOfDay
-// (HH:MM, 24-hour, server local time) when Enabled.
+// Event is one scheduled action, in one of two modes: run Action once a day
+// at TimeOfDay (HH:MM, 24-hour, server local time), or -- when Interval is
+// set -- run it every Interval minutes (mail-network polls and other
+// keep-fresh work). Interval takes precedence over TimeOfDay.
 type Event struct {
 	ID        int64
 	Name      string
 	Action    string
 	TimeOfDay string
-	Enabled   bool
-	LastRun   time.Time
+	// Interval, in minutes, switches the event from daily-at-a-time to
+	// every-N-minutes. 0 means daily mode.
+	Interval int
+	Enabled  bool
+	LastRun  time.Time
 }
 
-// DueAt reports whether e should run at instant now: enabled, past today's
-// TimeOfDay, and not already run since that moment today. A never-run event
-// (LastRun zero) is always due once its time has passed.
+// DueAt reports whether e should run at instant now. Interval mode: due when
+// at least Interval minutes have passed since LastRun (a never-run event is
+// due immediately). Daily mode: due once past today's TimeOfDay if it hasn't
+// already run since that moment.
 func (e Event) DueAt(now time.Time) bool {
 	if !e.Enabled {
 		return false
+	}
+	if e.Interval > 0 {
+		return !now.Before(e.LastRun.Add(time.Duration(e.Interval) * time.Minute))
 	}
 	hh, mm, ok := parseTimeOfDay(e.TimeOfDay)
 	if !ok {
@@ -113,16 +127,26 @@ func (s *Store) migrate() error {
 		action      TEXT NOT NULL DEFAULT '',
 		time_of_day TEXT NOT NULL DEFAULT '',
 		enabled     INTEGER NOT NULL DEFAULT 1,
-		last_run    INTEGER NOT NULL DEFAULT 0
+		last_run    INTEGER NOT NULL DEFAULT 0,
+		interval_min INTEGER NOT NULL DEFAULT 0
 	);`
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+	// Idempotent upgrade for tables created before interval events existed
+	// (SQLite has no ADD COLUMN IF NOT EXISTS).
+	_, err := s.db.Exec(`ALTER TABLE schedule_events ADD COLUMN interval_min INTEGER NOT NULL DEFAULT 0`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	return nil
 }
 
 // List returns every scheduled event, alphabetical by name.
 func (s *Store) List() ([]Event, error) {
 	rows, err := s.db.Query(
-		`SELECT id, name, action, time_of_day, enabled, last_run FROM schedule_events ORDER BY name, id`)
+		`SELECT id, name, action, time_of_day, enabled, last_run, interval_min
+		 FROM schedule_events ORDER BY name, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +165,8 @@ func (s *Store) List() ([]Event, error) {
 // Get returns one event by id, or nil,nil if not found.
 func (s *Store) Get(id int64) (*Event, error) {
 	row := s.db.QueryRow(
-		`SELECT id, name, action, time_of_day, enabled, last_run FROM schedule_events WHERE id = ?`, id)
+		`SELECT id, name, action, time_of_day, enabled, last_run, interval_min
+		 FROM schedule_events WHERE id = ?`, id)
 	e, err := scanEvent(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -162,7 +187,7 @@ func scanEvent(r rowScanner) (Event, error) {
 		enabled int
 		lastRun int64
 	)
-	if err := r.Scan(&e.ID, &e.Name, &e.Action, &e.TimeOfDay, &enabled, &lastRun); err != nil {
+	if err := r.Scan(&e.ID, &e.Name, &e.Action, &e.TimeOfDay, &enabled, &lastRun, &e.Interval); err != nil {
 		return Event{}, err
 	}
 	e.Enabled = enabled != 0
@@ -175,20 +200,25 @@ func scanEvent(r rowScanner) (Event, error) {
 // Add inserts a new scheduled event, returning its id.
 func (s *Store) Add(e *Event) (int64, error) {
 	res, err := s.db.Exec(
-		`INSERT INTO schedule_events (name, action, time_of_day, enabled, last_run) VALUES (?, ?, ?, ?, ?)`,
-		sanitize.Line(e.Name), sanitize.Line(e.Action), sanitize.Line(e.TimeOfDay), boolInt(e.Enabled), 0)
+		`INSERT INTO schedule_events (name, action, time_of_day, enabled, last_run, interval_min)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		sanitize.Line(e.Name), sanitize.Line(e.Action), sanitize.Line(e.TimeOfDay),
+		boolInt(e.Enabled), 0, max(e.Interval, 0))
 	if err != nil {
 		return 0, fmt.Errorf("schedule: add event: %w", err)
 	}
 	return res.LastInsertId()
 }
 
-// Update writes the editable fields (name, action, time of day, enabled) of
-// an existing event, keyed by e.ID. LastRun is left untouched -- use MarkRun.
+// Update writes the editable fields (name, action, time of day, interval,
+// enabled) of an existing event, keyed by e.ID. LastRun is left untouched --
+// use MarkRun.
 func (s *Store) Update(e *Event) error {
 	_, err := s.db.Exec(
-		`UPDATE schedule_events SET name = ?, action = ?, time_of_day = ?, enabled = ? WHERE id = ?`,
-		sanitize.Line(e.Name), sanitize.Line(e.Action), sanitize.Line(e.TimeOfDay), boolInt(e.Enabled), e.ID)
+		`UPDATE schedule_events SET name = ?, action = ?, time_of_day = ?, enabled = ?, interval_min = ?
+		 WHERE id = ?`,
+		sanitize.Line(e.Name), sanitize.Line(e.Action), sanitize.Line(e.TimeOfDay),
+		boolInt(e.Enabled), max(e.Interval, 0), e.ID)
 	if err != nil {
 		return fmt.Errorf("schedule: update event %d: %w", e.ID, err)
 	}
