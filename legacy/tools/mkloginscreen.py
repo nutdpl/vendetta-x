@@ -161,8 +161,8 @@ def build():
 
     foot_y = prompt_y + 2
     c.text_centered(
-        foot_y, "%s connected at 57600 %s cp437 %s ansi-bbs %s"
-        % (BULLET, MIDDOT, MIDDOT, BULLET), DGREY,
+        foot_y, "%s connected at 57600 %s ansi-bbs %s"
+        % (BULLET, MIDDOT, BULLET), DGREY,
     )
 
     bar_y = foot_y + 2
