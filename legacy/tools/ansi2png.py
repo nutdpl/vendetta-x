@@ -122,15 +122,18 @@ def parse(data, cols, rows):
         elif b == 0x09:
             x = (x // 8 + 1) * 8
         elif b >= 0x20:
-            grow(y)
-            if 0 <= x < cols:
-                cell = grid[y][x]
-                cell.cp = b
-                cell.fg = (fg | 8) if (bold and fg < 8) else fg
-                cell.bg = bg
-            x += 1
+            # Deferred (VT-style) wrap, matching real terminals: after the
+            # 80th glyph the cursor PARKS at the right edge, and only a
+            # further printable wraps. A CR/LF arriving first just starts the
+            # next line -- no phantom blank row after a full-width line.
             if x >= cols:
-                x = 0; y += 1; grow(y)
+                x = 0; y += 1
+            grow(y)
+            cell = grid[y][x]
+            cell.cp = b
+            cell.fg = (fg | 8) if (bold and fg < 8) else fg
+            cell.bg = bg
+            x += 1
         i += 1
     return grid
 
