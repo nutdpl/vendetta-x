@@ -27,6 +27,16 @@ semantic versioning.
   badges with viewing a board catching you up. One pointer store drives all
   three faces.
 
+### Changed
+
+- **The message reader header now wears the menu treatment.** The old
+  gradient double-line box is gone; in its place, the same visual language
+  as every menu screen: a two-row eroded gradient bar with half-block bite,
+  iCE-color hotspots and glints up top, the dithered circuit-trace divider,
+  a cyan-to-red gradient rail down the From/To/Subject/Date rows, and a
+  bitten half-block base rule under the header. Same row count, same token
+  alignment -- message bodies line up exactly as before.
+
 ### Fixed
 
 - The message and file submenus' lightbars carried hardcoded seeded area
