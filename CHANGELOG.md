@@ -8,6 +8,18 @@ semantic versioning.
 
 ### Added
 
+- **Nightly backups, out of the box.** A fresh board ships with a scheduled
+  `db.backup` event (04:00): each run writes a consistent `VACUUM INTO`
+  snapshot of the whole board into the backup directory (sysop-configurable,
+  default `backups/`, keep-last-7) -- safe with callers online, with a
+  catch-up run at startup if the board slept through one. Restore runbook
+  in `deploy/README.md`, plus a `/healthz` endpoint for uptime monitors.
+- **Bans and the trashcan.** The new sysop / bans page lays down durable
+  door policy: single-IP and CIDR-range bans (connection dropped before the
+  board answers, on every face) and handle patterns no new account may
+  contain -- each with a reason and optional expiry. The loopback console
+  can never be banned, so a sysop can't lock themselves out.
+
 - **A real goodbye.** Logging off now paints a proper send-off piece --
   GOODBYE in the board's TDF wordmark over the star field, "later,
   <handle>. the wall remembers.", live node/user/call counts -- with the

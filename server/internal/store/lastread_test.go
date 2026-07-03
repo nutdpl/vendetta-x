@@ -1,6 +1,8 @@
 package store
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -48,6 +50,53 @@ func TestLastReadPointer(t *testing.T) {
 	}
 	if got, _ := s.LastRead(user, bd); got != m2 {
 		t.Fatalf("pointer rewound to %d, want %d", got, m2)
+	}
+}
+
+func TestBackup(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Seed(); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	dir := t.TempDir()
+
+	path, err := s.Backup(dir, 2)
+	if err != nil {
+		t.Fatalf("Backup: %v", err)
+	}
+
+	// The snapshot must be a real, openable database with the data in it.
+	snap, err := Open(path)
+	if err != nil {
+		t.Fatalf("open snapshot: %v", err)
+	}
+	defer snap.Close()
+	boards, err := snap.Boards()
+	if err != nil || len(boards) == 0 {
+		t.Fatalf("snapshot boards = %d, %v", len(boards), err)
+	}
+
+	// Rotation: with keep=2, a third snapshot prunes the first. Names carry
+	// second-resolution timestamps, so give each a distinct second.
+	time.Sleep(1100 * time.Millisecond)
+	if _, err := s.Backup(dir, 2); err != nil {
+		t.Fatalf("Backup 2: %v", err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+	if _, err := s.Backup(dir, 2); err != nil {
+		t.Fatalf("Backup 3: %v", err)
+	}
+	entries, _ := os.ReadDir(dir)
+	snaps := 0
+	for _, e := range entries {
+		// Count only the snapshots themselves, not the -wal/-shm sidecars
+		// this test created by opening one to verify it.
+		if strings.HasSuffix(e.Name(), ".db") {
+			snaps++
+		}
+	}
+	if snaps != 2 {
+		t.Fatalf("rotation kept %d snapshots, want 2", snaps)
 	}
 }
 

@@ -44,6 +44,16 @@ var scheduledActions = map[string]func(b *board) error{
 		log.Printf("schedule: qwk-net exchange: %s", sum)
 		return nil
 	},
+	"db.backup": func(b *board) error {
+		dir := b.st.Setting("backup.dir", "backups")
+		keep := b.st.SettingInt("backup.keep", 7)
+		path, err := b.st.Backup(dir, keep)
+		if err != nil {
+			return err
+		}
+		log.Printf("schedule: database backed up to %s (keeping %d)", path, keep)
+		return nil
+	},
 }
 
 // runScheduler is the board's event loop: once a minute (plus an immediate

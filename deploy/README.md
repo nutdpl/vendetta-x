@@ -176,3 +176,27 @@ The state in `/var/lib/vendetta-x` (DB + host key) is untouched by an upgrade.
 
 Keep the DB and host key on durable storage and your board keeps its users,
 messages, and stable SSH identity across restarts and redeploys.
+
+## Backups & restore
+
+The whole board is one SQLite file, and the board ships with a **nightly
+backup event** already scheduled (04:00, `db.backup` -- see `/sysop/events`).
+Each run writes a consistent snapshot into the backup directory
+(`backups/` next to the working directory by default; change it under
+sysop / settings) and keeps the newest N (default 7). Snapshots are taken
+with `VACUUM INTO`, safe while callers are online.
+
+Point the backup directory at storage that is NOT the same disk as the
+live database if you can.
+
+**Restore** = stop the server, put a snapshot in place, start it again:
+
+```sh
+systemctl stop vendetta-x
+cp /path/to/backups/backup-YYYYMMDD-HHMMSS.db /opt/vendetta-x/vendetta.db
+systemctl start vendetta-x
+```
+
+**Health checks:** `GET /healthz` on the web port answers `ok N nodes`
+while the database is reachable, 503 when it isn't -- point your uptime
+monitor at it.

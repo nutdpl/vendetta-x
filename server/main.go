@@ -43,6 +43,7 @@ import (
 	"vendetta-x/server/internal/dragon"
 	"vendetta-x/server/internal/editor"
 	"vendetta-x/server/internal/gfiles"
+	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/render"
 	"vendetta-x/server/internal/schedule"
@@ -127,6 +128,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("schedule: %v", err)
 	}
+	guardStore, err := guard.New(st.DB())
+	if err != nil {
+		log.Fatalf("guard: %v", err)
+	}
+
+	// A fresh board ships with the nightly backup already scheduled -- the
+	// one maintenance job a sysop must never have to remember to set up.
+	if evs, err := scheduleStore.List(); err == nil && len(evs) == 0 {
+		if _, err := scheduleStore.Add(&schedule.Event{
+			Name: "nightly backup", Action: "db.backup", TimeOfDay: "04:00", Enabled: true,
+		}); err != nil {
+			log.Printf("seed nightly backup: %v", err)
+		}
+	}
 
 	pres := newPresence()
 	bbs := &board{
@@ -137,6 +152,7 @@ func main() {
 		void:          voidStore,
 		bulletins:     bulletinStore,
 		events:        scheduleStore,
+		guard:         guardStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -180,6 +196,15 @@ func main() {
 		LoginThrottle: bbs.loginThrottle,
 	}
 	mux := http.NewServeMux()
+	// /healthz: the uptime-monitor hook -- 200 with a node count while the
+	// database answers, 503 the moment it doesn't. Boring by design.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if err := st.DB().Ping(); err != nil {
+			http.Error(w, "db unreachable", http.StatusServiceUnavailable)
+			return
+		}
+		fmt.Fprintf(w, "ok %d nodes\n", len(pres.list()))
+	})
 	mux.Handle("/", web.New(st, pres.list, webCfg))
 	srv := &http.Server{
 		Addr:    *httpAddr,
@@ -334,6 +359,7 @@ type board struct {
 	void      *void.Store
 	bulletins *bulletin.Store
 	events    *schedule.Store
+	guard     *guard.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
@@ -490,6 +516,15 @@ func (b *board) RunBoard(s *term.Session) { b.runBoard(s) }
 // main menu loop.
 func (b *board) runBoard(s *term.Session) {
 	host := hostOf(s.RemoteAddr())
+
+	// The door policy: a banned address gets the dial tone, nothing else.
+	// Checked before the connect ceremony so a banned bot costs one line.
+	if _, banned := b.guard.BlockedIP(host); banned {
+		s.Print("\r\nNO CARRIER\r\n")
+		s.Flush()
+		return
+	}
+
 	id := b.pres.join("connecting@" + host)
 	defer b.pres.leave(id)
 
@@ -716,6 +751,10 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 		}
 		if err := store.ValidateHandle(handle); err != nil {
 			s.Print("\x1b[1;31m  " + err.Error() + ".\x1b[0m\r\n")
+			continue
+		}
+		if _, banned := b.guard.BlockedHandle(handle); banned {
+			s.Print("\x1b[1;31m  That handle isn't available here. Try another.\x1b[0m\r\n")
 			continue
 		}
 		u, err := b.st.UserByHandle(handle)

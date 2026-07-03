@@ -1,0 +1,68 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "bans")}}
+
+{{if .Err}}<p class="form-error">That ban didn't parse -- an IP must be a valid address (e.g. 203.0.113.7), a range must be CIDR (e.g. 203.0.113.0/24), and a handle pattern needs at least 2 characters.</p>{{end}}
+
+<section class="panel">
+  <h2 class="ph">lay down a ban</h2>
+  <p class="sg-note">IP and range bans drop the connection before the board answers, on every face. Handle patterns are the trashcan: no new account may contain them. The local console (loopback) can never be locked out, so you can't ban yourself off your own machine.</p>
+  <form method="post" action="/sysop/bans" class="authform" autocomplete="off">
+    <div class="cols">
+      <div class="field">
+        <label for="b-kind">kind</label>
+        <select id="b-kind" name="kind">
+          <option value="ip">single IP</option>
+          <option value="cidr">CIDR range</option>
+          <option value="handle">handle pattern</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="b-value">value</label>
+        <input id="b-value" type="text" name="value" maxlength="60" placeholder="203.0.113.7 / 203.0.113.0/24 / lamer" required>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="b-reason">reason (shown in this list)</label>
+        <input id="b-reason" type="text" name="reason" maxlength="120" placeholder="flooding the wall">
+      </div>
+      <div class="field">
+        <label for="b-days">expires after (days, blank = permanent)</label>
+        <input id="b-days" type="number" name="days" min="1" max="36500" placeholder="permanent">
+      </div>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">ban</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2 class="ph">active bans <span class="chip">{{len .Bans}}</span></h2>
+  {{if .Bans}}
+    <table class="table">
+      <thead>
+        <tr><th>kind</th><th>value</th><th>reason</th><th>laid down</th><th>expires</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{range .Bans}}
+          <tr>
+            <td>{{template "c-badge" (dict "label" .Kind "variant" "red")}}</td>
+            <td><code>{{.Value}}</code></td>
+            <td>{{.Reason}}</td>
+            <td>{{since .Created}}</td>
+            <td>{{if .Expires.IsZero}}never{{else}}{{fdate .Expires}}{{end}}</td>
+            <td class="rowacts">
+              <form method="post" action="/sysop/bans/{{.ID}}/delete">
+                <button class="btn btn-sm btn-danger" type="submit">lift</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No bans. A peaceful board.</p>
+  {{end}}
+</section>
+{{end}}

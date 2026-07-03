@@ -39,6 +39,8 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		Moderate      bool
 		PurgeDays     int
 		OnelinerKeep  int
+		BackupDir     string
+		BackupKeep    int
 		FeatureToggle []featureToggle
 		Saved         bool
 	}{
@@ -55,6 +57,8 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		Moderate:      s.st.SettingBool("files.moderate", false),
 		PurgeDays:     s.st.SettingInt("schedule.messages.purge_days", 180),
 		OnelinerKeep:  s.st.SettingInt("schedule.oneliners.keep", 200),
+		BackupDir:     s.st.Setting("backup.dir", "backups"),
+		BackupKeep:    s.st.SettingInt("backup.keep", 7),
 		FeatureToggle: toggles,
 		Saved:         r.URL.Query().Get("ok") != "",
 	})
@@ -94,6 +98,10 @@ func (s *server) sysopSettingsSave(w http.ResponseWriter, r *http.Request) {
 	set("files.moderate", moderate)
 	set("schedule.messages.purge_days", strconv.Itoa(clampRange(r.FormValue("purge_days"), 180, 1, 3650)))
 	set("schedule.oneliners.keep", strconv.Itoa(clampRange(r.FormValue("oneliner_keep"), 200, 1, 100000)))
+	if dir := strings.TrimSpace(r.FormValue("backup_dir")); dir != "" {
+		set("backup.dir", dir)
+	}
+	set("backup.keep", strconv.Itoa(clampRange(r.FormValue("backup_keep"), 7, 1, 365)))
 	// Each feature: a present checkbox (value "1") means on, absent means off.
 	for _, f := range store.Features {
 		on := "0"
