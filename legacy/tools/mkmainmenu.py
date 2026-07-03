@@ -24,11 +24,15 @@ COLS = 80
 
 random.seed(17)
 
-# (hotkey, label) -- hotkeys mirror data/MAIN.MNU. Two columns, top-to-bottom.
+# (hotkey, label) -- hotkeys mirror mainMenu's switch in server/main.go.
+# Two columns, top-to-bottom. C is the teleconference (it always was in the
+# code); P pages the sysop -- the C slot carried the "Page Sysop" label for a
+# while, silently opening the wrong feature and leaving paging unreachable.
 LEFT = [
     ("M", "Message Bases"), ("F", "File Areas"), ("E", "Email"),
-    ("O", "Oneliners"), ("W", "Who's Online"), ("C", "Page Sysop"),
-    ("D", "Doors"), ("Q", "QWK Mail"), ("N", "New Files"),
+    ("O", "Oneliners"), ("W", "Who's Online"), ("C", "Teleconference"),
+    ("P", "Page Sysop"), ("D", "Doors"), ("Q", "QWK Mail"),
+    ("N", "New Files"),
 ]
 RIGHT = [
     ("T", "G-Files"), ("B", "BBS List"), ("V", "Voting Booth"),

@@ -81,6 +81,7 @@ var Features = []Feature{
 	{"newfiles", "New Files", "Newest-uploads scan"},
 	{"oneliners", "Oneliners", "The wall"},
 	{"teleconference", "Teleconference", "Multi-node live chat"},
+	{"paging", "Page Sysop", "Callers can page the operator (delivered as mail)"},
 }
 
 // FeatureEnabled reports whether the named feature (by its registry Key) is

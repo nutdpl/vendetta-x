@@ -241,16 +241,23 @@ func main() {
 type presence struct {
 	mu   sync.Mutex
 	next int
-	who  map[int]string
+	who  map[int]*presEntry
 }
 
-func newPresence() *presence { return &presence{who: map[int]string{}} }
+func newPresence() *presence { return &presence{who: map[int]*presEntry{}} }
+
+// presEntry is one online node: who is on it and what they're doing right
+// now -- the activity column classic multinode boards showed on who's-online.
+type presEntry struct {
+	who      string
+	activity string
+}
 
 func (p *presence) join(who string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.next++
-	p.who[p.next] = who
+	p.who[p.next] = &presEntry{who: who}
 	return p.next
 }
 
@@ -263,8 +270,17 @@ func (p *presence) leave(id int) {
 func (p *presence) rename(id int, who string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, ok := p.who[id]; ok {
-		p.who[id] = who
+	if e, ok := p.who[id]; ok {
+		e.who = who
+	}
+}
+
+// setActivity updates a node's "doing" string (shown on who's-online).
+func (p *presence) setActivity(id int, activity string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if e, ok := p.who[id]; ok {
+		e.activity = activity
 	}
 }
 
@@ -273,10 +289,30 @@ func (p *presence) list() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make([]string, 0, len(p.who))
-	for _, w := range p.who {
-		out = append(out, w)
+	for _, e := range p.who {
+		out = append(out, e.who)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// presRow is one row of the detailed who's-online snapshot.
+type presRow struct {
+	Node     int
+	Who      string
+	Activity string
+}
+
+// snapshot returns every node in node order with its activity, for the
+// terminal who's-online table.
+func (p *presence) snapshot() []presRow {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make([]presRow, 0, len(p.who))
+	for id, e := range p.who {
+		out = append(out, presRow{Node: id, Who: e.who, Activity: e.activity})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Node < out[j].Node })
 	return out
 }
 
@@ -476,8 +512,9 @@ func (b *board) runBoard(s *term.Session) {
 	tok["UH"] = user.Handle
 	b.pres.rename(id, user.Handle+"@"+host)
 
+	b.pres.setActivity(id, "logging on")
 	b.logon(s, tok, user)
-	b.mainMenu(s, tok, user)
+	b.mainMenu(s, tok, user, id)
 
 	s.Print("\x1b[0m\r\n  Later, " + user.Handle + ". NO CARRIER\r\n")
 	s.Flush()
@@ -740,8 +777,9 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 }
 
 // mainMenu is the top-level lightbar. Loops until Goodbye / carrier loss.
-func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.User) {
+func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.User, node int) {
 	first := true
+	b.pres.setActivity(node, "main menu")
 	for {
 		var opts []render.Marker
 		if first {
@@ -765,31 +803,40 @@ func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.Use
 			}
 			s.Notice("That area is closed by the sysop.")
 		}
+		// doing runs fn with the node's who's-online activity set (the
+		// "Doing" column other callers see), restoring "main menu" after.
+		doing := func(what string, fn func()) {
+			b.pres.setActivity(node, what)
+			fn()
+			b.pres.setActivity(node, "main menu")
+		}
 		switch lc(key) {
 		case 'm':
-			b.messageMenu(s, tok, user)
+			doing("in the message bases", func() { b.messageMenu(s, tok, user) })
 		case 'f':
-			b.fileMenu(s, tok, user)
+			doing("in the file areas", func() { b.fileMenu(s, tok, user) })
 		case 'e':
-			gated("email", func() { b.email(s, tok, user) })
+			gated("email", func() { doing("reading mail", func() { b.email(s, tok, user) }) })
 		case 'o':
-			gated("oneliners", func() { b.oneliners(s, user) })
+			gated("oneliners", func() { doing("at the wall", func() { b.oneliners(s, user) }) })
 		case 'w':
 			b.whosOnline(s)
 		case 'c':
-			gated("teleconference", func() { b.teleconference(s, user) })
+			gated("teleconference", func() { doing("in teleconference", func() { b.teleconference(s, user) }) })
+		case 'p':
+			gated("paging", func() { doing("paging the sysop", func() { b.pageSysop(s, user) }) })
 		case 'd':
-			gated("doors", func() { b.doors(s, tok, user) })
+			gated("doors", func() { doing("in the doors", func() { b.doors(s, tok, user) }) })
 		case 'q':
-			gated("qwk", func() { b.qwk(s, tok, user) })
+			gated("qwk", func() { doing("packing qwk mail", func() { b.qwk(s, tok, user) }) })
 		case 'n':
 			gated("newfiles", func() { b.newFiles(s, user) })
 		case 't':
-			gated("gfiles", func() { b.gFiles(s, tok, user) })
+			gated("gfiles", func() { doing("reading g-files", func() { b.gFiles(s, tok, user) }) })
 		case 'b':
 			gated("bbslist", func() { b.bbsList(s, tok, user) })
 		case 'v':
-			gated("voting", func() { b.votingBooth(s, tok, user) })
+			gated("voting", func() { doing("in the voting booth", func() { b.votingBooth(s, tok, user) }) })
 		case 'u':
 			b.userList(s)
 		case 'l':
@@ -1414,12 +1461,17 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 }
 
 func (b *board) whosOnline(s *term.Session) {
-	online := b.pres.list()
+	online := b.pres.snapshot()
 	b.screenHeader(s, "who's online")
-	s.Print("\x1b[1;35m   #  \x1b[0;36mCaller\x1b[0m\r\n")
+	s.Print("\x1b[1;35m  Node  \x1b[0;36mCaller                        \x1b[1;30mDoing\x1b[0m\r\n")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-	for i, w := range online {
-		s.Printf("  \x1b[1;33m%2d  \x1b[1;36m\xfe \x1b[0;37m%s\x1b[0m\r\n", i+1, w)
+	for _, w := range online {
+		act := w.Activity
+		if act == "" {
+			act = "connecting"
+		}
+		s.Printf("  \x1b[1;33m%4d  \x1b[1;36m\xfe \x1b[0;37m%-28s \x1b[1;30m%s\x1b[0m\r\n",
+			w.Node, truncStr(w.Who, 28), truncStr(act, 32))
 	}
 	if len(online) == 0 {
 		s.Print("\x1b[0;37m  Nobody on the wire right now.\x1b[0m\r\n")

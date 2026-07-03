@@ -8,6 +8,16 @@ semantic versioning.
 
 ### Added
 
+- **Page Sysop** -- the classic doorbell, now real. `P` from the main menu:
+  state your business, the board runs the paging beat, and the page lands in
+  the operator's mailbox (subject `PAGE: ...`), with the caller told whether
+  an operator is on the board right now. Sysop-toggleable like every other
+  feature.
+- **Who's-online now shows what everyone is doing.** The node list grew the
+  classic Node / Caller / Doing columns -- "in the message bases", "in
+  teleconference", "paging the sysop", "in the doors" -- updated live as
+  callers move around the board.
+
 - **Threaded replies with classic auto-quote.** Replying now opens the editor
   on the original, `Handle>`-quoted (wrapped, capped, cursor underneath), and
   the post remembers what it answers. The reader footer grows **[T]hread** on
@@ -39,6 +49,10 @@ semantic versioning.
 
 ### Fixed
 
+- The main menu's `C` slot was labeled **"Page Sysop" but opened the
+  teleconference** -- and the teleconference itself was listed nowhere.
+  `C` is now labeled Teleconference (what it always ran), and the new `P`
+  Page Sysop entry drives the real paging feature.
 - The message and file submenus' lightbars carried hardcoded seeded area
   names instead of the command set the board acts on, leaving Read / Post /
   New Scan (and List & Download / New Files) unreachable from the menu.
