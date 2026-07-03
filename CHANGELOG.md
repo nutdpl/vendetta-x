@@ -8,6 +8,11 @@ semantic versioning.
 
 ### Added
 
+- **A real goodbye.** Logging off now paints a proper send-off piece --
+  GOODBYE in the board's TDF wordmark over the star field, "later,
+  <handle>. the wall remembers.", live node/user/call counts -- with the
+  modem's own `NO CARRIER` as the last word, instead of a bare one-liner.
+
 - **Real upload intake on both faces.** A ZIP that carries a `FILE_ID.DIZ`
   now describes itself in the listing (the scene standard; the typed line is
   the fallback), and exact duplicate uploads are refused board-wide by

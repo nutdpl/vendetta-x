@@ -516,7 +516,15 @@ func (b *board) runBoard(s *term.Session) {
 	b.logon(s, tok, user)
 	b.mainMenu(s, tok, user, id)
 
-	s.Print("\x1b[0m\r\n  Later, " + user.Handle + ". NO CARRIER\r\n")
+	// The send-off: the goodbye piece with the caller's handle spliced in, a
+	// beat to take it in, then the modem's own last word. Fresh stat tokens
+	// so the farewell counts are as live as the login's were.
+	b.pres.setActivity(id, "logging off")
+	b.loginTokens(tok)
+	s.RenderScreen(b.art+"/goodbye.pp", tok)
+	s.Flush()
+	s.Sleep(1500 * time.Millisecond)
+	s.Print("\x1b[0m\r\n  NO CARRIER\r\n")
 	s.Flush()
 }
 
