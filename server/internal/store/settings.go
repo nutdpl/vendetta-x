@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"time"
+
+	"vendetta-x/server/internal/sanitize"
 )
 
 // Global, sysop-editable configuration lives in the settings key/value table
@@ -82,6 +85,35 @@ var Features = []Feature{
 	{"oneliners", "Oneliners", "The wall"},
 	{"teleconference", "Teleconference", "Multi-node live chat"},
 	{"paging", "Page Sysop", "Callers can page the operator (delivered as mail)"},
+}
+
+// ---- the automessage --------------------------------------------------------
+//
+// One board-wide announcement, claimable by any caller (WWIV heritage): the
+// newest claim simply replaces the last. Settings-backed -- three keys, no
+// table -- because there is only ever one.
+
+// Automessage returns the current announcement (empty text = none set).
+func (s *Store) Automessage() (author, text string, at time.Time) {
+	author = s.Setting("automessage.author", "")
+	text = s.Setting("automessage.text", "")
+	if n := s.SettingInt("automessage.at", 0); n > 0 {
+		at = time.Unix(int64(n), 0)
+	}
+	return author, text, at
+}
+
+// SetAutomessage claims the automessage for author (empty text clears it).
+func (s *Store) SetAutomessage(author, text string) error {
+	author = sanitize.Line(author)
+	text = sanitize.Line(text)
+	if err := s.SetSetting("automessage.author", author); err != nil {
+		return err
+	}
+	if err := s.SetSetting("automessage.text", text); err != nil {
+		return err
+	}
+	return s.SetSetting("automessage.at", strconv.FormatInt(time.Now().Unix(), 10))
 }
 
 // FeatureEnabled reports whether the named feature (by its registry Key) is

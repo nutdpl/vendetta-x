@@ -51,6 +51,53 @@ func TestLastReadPointer(t *testing.T) {
 	}
 }
 
+func TestAutomessage(t *testing.T) {
+	s := newTestStore(t)
+	if a, txt, _ := s.Automessage(); a != "" || txt != "" {
+		t.Fatalf("fresh automessage should be empty, got %q/%q", a, txt)
+	}
+	if err := s.SetAutomessage("phantom", "vendetta lives \x1b[31m"); err != nil {
+		t.Fatalf("SetAutomessage: %v", err)
+	}
+	author, text, at := s.Automessage()
+	if author != "phantom" || text != "vendetta lives [31m" || at.IsZero() {
+		t.Fatalf("Automessage = %q/%q/%v (control bytes must be stripped)", author, text, at)
+	}
+	if err := s.SetAutomessage("", ""); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	if _, txt, _ := s.Automessage(); txt != "" {
+		t.Fatalf("cleared automessage still reads %q", txt)
+	}
+}
+
+func TestDigestCounts(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Seed(); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	cutoff := time.Now().Add(-1 * time.Minute)
+
+	areas, _ := s.FileAreas()
+	if _, err := s.AddFile(areas[0].ID, "fresh.zip", "new stuff", "nut", []byte("x")); err != nil {
+		t.Fatalf("AddFile: %v", err)
+	}
+	counts, err := s.FileCountsAfter(cutoff)
+	if err != nil || counts[areas[0].ID] < 1 {
+		t.Fatalf("FileCountsAfter = %v, %v; want area %d >= 1", counts, err, areas[0].ID)
+	}
+	if counts2, _ := s.FileCountsAfter(time.Now().Add(time.Hour)); len(counts2) != 0 {
+		t.Fatalf("future cutoff should count nothing, got %v", counts2)
+	}
+
+	if _, err := s.AddUser(&User{Handle: "newblood", FirstCall: time.Now()}); err != nil {
+		t.Fatalf("AddUser: %v", err)
+	}
+	if n, err := s.NewUsersSince(cutoff); err != nil || n < 1 {
+		t.Fatalf("NewUsersSince = %d, %v; want >= 1", n, err)
+	}
+}
+
 func TestReplyToRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.Seed(); err != nil {

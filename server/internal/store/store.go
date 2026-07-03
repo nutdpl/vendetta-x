@@ -612,6 +612,41 @@ func (s *Store) LocalMessagesAfter(boardID, afterID int64) ([]Message, error) {
 	return scanMessages(rows)
 }
 
+// FileCountsAfter returns, per file area, how many files were uploaded after
+// t -- the "new files since your last call" digest feed. The caller applies
+// its own area-ACS filtering.
+func (s *Store) FileCountsAfter(t time.Time) (map[int64]int, error) {
+	rows, err := s.db.Query(
+		`SELECT area_id, COUNT(*) FROM files WHERE uploaded > ? GROUP BY area_id`,
+		toUnix(t))
+	if err != nil {
+		return nil, fmt.Errorf("store: file counts after: %w", err)
+	}
+	defer rows.Close()
+	counts := map[int64]int{}
+	for rows.Next() {
+		var areaID int64
+		var n int
+		if err := rows.Scan(&areaID, &n); err != nil {
+			return nil, fmt.Errorf("store: file counts scan: %w", err)
+		}
+		counts[areaID] = n
+	}
+	return counts, rows.Err()
+}
+
+// NewUsersSince counts accounts whose first call is after t -- fresh blood
+// for the logon digest.
+func (s *Store) NewUsersSince(t time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM users WHERE first_call > ?`, toUnix(t)).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("store: new users since: %w", err)
+	}
+	return n, nil
+}
+
 // MessageByID returns one message, or nil when it doesn't exist.
 func (s *Store) MessageByID(id int64) (*Message, error) {
 	rows, err := s.db.Query(`SELECT `+msgCols+` FROM messages WHERE id = ?`, id)

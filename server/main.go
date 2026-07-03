@@ -1441,15 +1441,38 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 		return
 	}
 	b.screenHeader(s, "the wall \xfa oneliners")
+
+	// The automessage: one claimable board-wide shout, sitting above the
+	// wall. Whoever claims it last owns it until the next caller does.
+	if author, amsg, at := b.st.Automessage(); amsg != "" {
+		s.Printf("  \x1b[1;33m\xfe automessage \x1b[1;30m\xfa \x1b[1;35m%s \x1b[1;30m\xfa %s\x1b[0m\r\n",
+			author, relTime(at))
+		s.Printf("    \x1b[1;37m%s\x1b[0m\r\n", amsg)
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
+	}
+
 	if len(liners) == 0 {
 		s.Print("\x1b[0;37m  The wall is blank. Tag it.\x1b[0m\r\n")
 	}
 	for _, o := range liners {
 		s.Printf("  \x1b[1;35m%-12s \x1b[1;30m\xb3 \x1b[0;37m%s\x1b[0m\r\n", truncStr(o.Author, 12), o.Text)
 	}
-	s.Print("\r\n\x1b[0;37m  Leave your mark \x1b[1;30m(enter to skip)\x1b[0;37m: \x1b[1;37m")
+	s.Print("\r\n\x1b[0;37m  Leave your mark \x1b[1;30m(enter skips \xfa start with \x1b[1;37m!\x1b[1;30m to claim the automessage)\x1b[0;37m: \x1b[1;37m")
 	s.Flush()
 	text := s.ReadLine(80)
+	if claim, ok := strings.CutPrefix(strings.TrimSpace(text), "!"); ok {
+		claim = strings.TrimSpace(claim)
+		if claim == "" {
+			return
+		}
+		if err := b.st.SetAutomessage(user.Handle, claim); err != nil {
+			s.Notice("Could not claim the automessage.")
+			return
+		}
+		s.Print("\x1b[1;32m  The automessage is yours.\x1b[0m\r\n")
+		s.Pause()
+		return
+	}
 	if strings.TrimSpace(text) != "" {
 		if err := b.st.AddOneliner(&store.Oneliner{Author: user.Handle, Text: text, Posted: time.Now()}); err != nil {
 			s.Notice("Could not post your line.")

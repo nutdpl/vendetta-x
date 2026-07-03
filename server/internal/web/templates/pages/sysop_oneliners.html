@@ -2,6 +2,19 @@
 {{template "sysop-nav" (dict "active" "oneliners")}}
 
 <section class="panel">
+  <h2 class="ph">automessage</h2>
+  {{if .AmText}}
+    <p><b>{{.AmAuthor}}</b> &middot; {{since .AmAt}}</p>
+    <p>{{.AmText}}</p>
+    <form method="post" action="/sysop/oneliners/automessage/clear" onsubmit="return confirm('Clear the automessage?')">
+      <button class="btn btn-sm btn-danger" type="submit">clear</button>
+    </form>
+  {{else}}
+    <p class="empty">No automessage set. Callers claim it from the wall (a line starting with <code>!</code>).</p>
+  {{end}}
+</section>
+
+<section class="panel">
   <h2 class="ph">the wall <span class="chip">{{len .Liners}}</span></h2>
   {{if .Liners}}
     <table class="table">

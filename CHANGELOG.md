@@ -8,6 +8,14 @@ semantic versioning.
 
 ### Added
 
+- **The automessage** -- one board-wide shout, claimable by any caller (WWIV
+  heritage). It sits above the wall on the oneliners screen; start your wall
+  line with `!` to claim it, and whoever claims it last owns it until the
+  next caller does. The sysop can clear it from the wall-moderation page.
+- **A fuller "since your last call" digest at logon.** Alongside new
+  messages and unread mail, the greeting now counts **new files** in areas
+  you can see and **new callers** who joined since you were last on.
+
 - **Page Sysop** -- the classic doorbell, now real. `P` from the main menu:
   state your business, the board runs the paging beat, and the page lands in
   the operator's mailbox (subject `PAGE: ...`), with the caller told whether

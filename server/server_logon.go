@@ -53,6 +53,30 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 		}
 	}
 
+	// The rest of the since-your-last-call digest: fresh files (in areas the
+	// caller can see) and fresh blood. First-time callers skip it -- on call
+	// one, everything is new.
+	if !user.LastCall.IsZero() {
+		if counts, err := b.st.FileCountsAfter(user.LastCall); err == nil && len(counts) > 0 {
+			total := 0
+			if areas, err := b.st.FileAreas(); err == nil {
+				subj := subjectOf(user)
+				for i := range areas {
+					if acs.Eval(areas[i].ACS, subj) {
+						total += counts[areas[i].ID]
+					}
+				}
+			}
+			if total > 0 {
+				s.Printf("  \x1b[1;30mFiles    \x1b[0;37m\xb7 \x1b[1;36m%d\x1b[0;37m new since your last call \x1b[1;30m-- [N]ew files lists them\x1b[0m\r\n", total)
+			}
+		}
+		if n, err := b.st.NewUsersSince(user.LastCall); err == nil && n > 0 {
+			s.Printf("  \x1b[1;30mNew blood\x1b[0;37m\xb7 \x1b[1;37m%d\x1b[0;37m %s joined since you were on\x1b[0m\r\n",
+				n, plural(n, "caller", "callers"))
+		}
+	}
+
 	s.Print("\r\n\x1b[0;37m  Quick logon? \x1b[1;30m(\x1b[1;37mY\x1b[1;30m skips to the menu, \x1b[1;37mN\x1b[1;30m takes the tour) \x1b[1;36m[\x1b[1;37my/\x1b[1;33mN\x1b[1;36m] \x1b[1;37m")
 	s.Flush()
 	if k, ch := s.ReadKey(); k == term.KeyChar && lc(ch) == 'y' {
