@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"path"
 	"strconv"
-	"strings"
 
 	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/store"
+	"vendetta-x/server/internal/upload"
 )
 
 // maxUploadBytes caps a single uploaded file. Content is stored in SQLite, so
@@ -144,7 +144,23 @@ func (s *server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := safeFilename(path.Base(header.Filename))
-	desc := strings.TrimSpace(r.FormValue("description"))
+
+	// Same intake as the terminal face: refuse exact duplicates, let a ZIP's
+	// FILE_ID.DIZ describe the release, and honor the moderation queue.
+	if dupe, err := s.st.FileByHash(upload.Hash(content)); err == nil && dupe != nil {
+		http.Redirect(w, r, dest, http.StatusSeeOther)
+		return
+	}
+	desc := upload.Describe(content, r.FormValue("description"))
+
+	if s.st.SettingBool("files.moderate", false) && !s.st.RatioExempt(u) {
+		if _, err := s.st.AddPendingFile(id, filename, desc, u.Handle, content); err != nil {
+			log.Printf("web: AddPendingFile: %v", err)
+		}
+		http.Redirect(w, r, dest, http.StatusSeeOther)
+		return
+	}
+
 	if _, err := s.st.AddFile(id, filename, desc, u.Handle, content); err != nil {
 		log.Printf("web: AddFile: %v", err)
 	} else if err := s.st.AddUploadBytes(u.ID, int64(len(content))); err != nil {

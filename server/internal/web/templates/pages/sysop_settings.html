@@ -58,6 +58,10 @@
       <label for="s-rf">free download allowance (MB)</label>
       <input id="s-rf" type="number" name="ratio_free_mb" min="0" max="100000" value="{{.RatioFreeMB}}">
     </div>
+    <div class="field field-check">
+      <label><input type="checkbox" name="files_moderate" value="1" {{if .Moderate}}checked{{end}}> hold new uploads for review</label>
+    </div>
+    <p class="sg-note">When on, uploads from regular callers wait in the <a href="/sysop/uploads">upload queue</a> until you approve them; upload credit lands on approval. Sysops bypass the queue.</p>
   </section>
 
   <section class="panel">

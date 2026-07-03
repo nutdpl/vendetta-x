@@ -51,6 +51,72 @@ func TestLastReadPointer(t *testing.T) {
 	}
 }
 
+func TestUploadQueue(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Seed(); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	areas, _ := s.FileAreas()
+	area := areas[0].ID
+
+	id, err := s.AddPendingFile(area, "held.zip", "waiting", "phantom", []byte("payload"))
+	if err != nil {
+		t.Fatalf("AddPendingFile: %v", err)
+	}
+
+	// Invisible while pending: listing, content, digest.
+	for _, f := range mustFiles(t, s, area) {
+		if f.ID == id {
+			t.Fatal("pending file leaked into the area listing")
+		}
+	}
+	if c, _ := s.FileContent(id); c != nil {
+		t.Fatal("pending file content served")
+	}
+
+	// But the dupe check sees it -- re-uploading the same bytes is refused.
+	f, _ := s.FileByID(id)
+	if f == nil || f.Approved {
+		t.Fatalf("FileByID pending = %+v", f)
+	}
+	if dupe, _ := s.FileByHash(f.Hash); dupe == nil {
+		t.Fatal("FileByHash missed the pending copy")
+	}
+
+	// Approval flips every switch.
+	if err := s.ApproveFile(id); err != nil {
+		t.Fatalf("ApproveFile: %v", err)
+	}
+	found := false
+	for _, f := range mustFiles(t, s, area) {
+		found = found || f.ID == id
+	}
+	if !found {
+		t.Fatal("approved file missing from listing")
+	}
+	if c, _ := s.FileContent(id); string(c) != "payload" {
+		t.Fatalf("approved content = %q", c)
+	}
+
+	// Rejection path: delete removes the row entirely.
+	id2, _ := s.AddPendingFile(area, "bad.zip", "", "phantom", []byte("junk"))
+	if err := s.DeleteFile(id2); err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if f, _ := s.FileByID(id2); f != nil {
+		t.Fatal("rejected file still present")
+	}
+}
+
+func mustFiles(t *testing.T, s *Store, area int64) []FileEntry {
+	t.Helper()
+	files, err := s.Files(area)
+	if err != nil {
+		t.Fatalf("Files: %v", err)
+	}
+	return files
+}
+
 func TestAutomessage(t *testing.T) {
 	s := newTestStore(t)
 	if a, txt, _ := s.Automessage(); a != "" || txt != "" {

@@ -8,6 +8,18 @@ semantic versioning.
 
 ### Added
 
+- **Real upload intake on both faces.** A ZIP that carries a `FILE_ID.DIZ`
+  now describes itself in the listing (the scene standard; the typed line is
+  the fallback), and exact duplicate uploads are refused board-wide by
+  content hash before they cost anyone anything.
+- **An upload review queue.** Flip "hold new uploads for review" in settings
+  and caller uploads wait -- invisible to listings, scans, and downloads on
+  every face -- in the new `/sysop/uploads` queue. Approve: the file goes
+  live, the uploader's ratio credit lands, and they're mailed the good news.
+  Reject: the file is deleted and the uploader is mailed your reason.
+  Sysops bypass the queue; credit lands on approval, so junk can't farm
+  ratio.
+
 - **The automessage** -- one board-wide shout, claimable by any caller (WWIV
   heritage). It sits above the wall on the oneliners screen; start your wall
   line with `!` to claim it, and whoever claims it last owns it until the

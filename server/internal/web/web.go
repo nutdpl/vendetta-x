@@ -236,6 +236,11 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/doors", s.admin(s.sysopDoorSave))
 	mux.HandleFunc("POST /sysop/doors/{id}/delete", s.admin(s.sysopDoorDelete))
 
+	// upload review queue
+	mux.HandleFunc("GET /sysop/uploads", s.admin(s.sysopUploads))
+	mux.HandleFunc("POST /sysop/uploads/{id}/approve", s.admin(s.sysopUploadApprove))
+	mux.HandleFunc("POST /sysop/uploads/{id}/reject", s.admin(s.sysopUploadReject))
+
 	// the wall (moderation)
 	mux.HandleFunc("GET /sysop/oneliners", s.admin(s.sysopOneliners))
 	mux.HandleFunc("POST /sysop/oneliners/{id}/delete", s.admin(s.sysopOnelinerDelete))
