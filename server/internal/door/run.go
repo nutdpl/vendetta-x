@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 )
 
 // ErrNotConfigured means the door has no command set.
@@ -86,8 +85,6 @@ func runPipes(cmd *exec.Cmd, rw io.ReadWriteCloser) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
-
 	// rw -> process stdin. When rw hits EOF (carrier loss) we close the stdin
 	// pipe so the door sees end-of-input; we do NOT block process teardown on
 	// this goroutine (the caller may sit idle), so it is not waited on.
@@ -96,18 +93,20 @@ func runPipes(cmd *exec.Cmd, rw io.ReadWriteCloser) error {
 		stdin.Close()
 	}()
 
-	// process stdout/stderr -> rw. This goroutine ends when the process closes
-	// its stdout (i.e. on exit), which is our reliable teardown signal.
-	wg.Add(1)
+	// process stdout/stderr -> rw. The child's exit closes the pipe's write
+	// side, so this copier sees EOF exactly when the door is done talking.
+	copyDone := make(chan struct{})
 	go func() {
-		defer wg.Done()
+		defer close(copyDone)
 		io.Copy(rw, stdout)
 	}()
 
+	// Drain the output BEFORE Wait: Wait closes the stdout pipe, and calling
+	// it while the copier still holds unread bytes can drop the door's final
+	// burst (the documented os/exec StdoutPipe ordering rule -- it bit us as
+	// a lost-last-screen race on slow machines).
+	<-copyDone
 	werr := cmd.Wait()
-	// Process is gone; stdout pipe is closed by Wait, so the stdout copier will
-	// observe EOF and return. Drain it before returning.
-	wg.Wait()
 	// Best-effort: closing stdin unblocks the input copier if it is parked.
 	stdin.Close()
 
