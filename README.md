@@ -43,6 +43,9 @@ First time? Connect, pick a handle, make an account. You're in.
   * **bbs list** — numbers for other boards worth your time.
   * **qwk mail** — pack the messages into a .QWK, read 'em offline, upload your
     replies later.
+  * **message networks** — the board is a real FTN node: join fsxNet, FidoNet,
+    AgoraNet and friends (and DOVE-Net over QWK), and your bases carry traffic
+    from boards all over the world.
 
 ...plus the usual: user list, last callers, your stats, and a settings screen
 to fix your profile and password.

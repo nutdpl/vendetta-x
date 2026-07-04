@@ -42,6 +42,7 @@ import (
 	"vendetta-x/server/internal/door"
 	"vendetta-x/server/internal/dragon"
 	"vendetta-x/server/internal/editor"
+	"vendetta-x/server/internal/ftn"
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
@@ -132,6 +133,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("guard: %v", err)
 	}
+	ftnStore, err := ftn.NewStore(st.DB())
+	if err != nil {
+		log.Fatalf("ftn: %v", err)
+	}
 
 	// A fresh board ships with the nightly backup already scheduled -- the
 	// one maintenance job a sysop must never have to remember to set up.
@@ -153,6 +158,7 @@ func main() {
 		bulletins:     bulletinStore,
 		events:        scheduleStore,
 		guard:         guardStore,
+		ftn:           ftnStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -360,6 +366,7 @@ type board struct {
 	bulletins *bulletin.Store
 	events    *schedule.Store
 	guard     *guard.Store
+	ftn       *ftn.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).

@@ -37,6 +37,7 @@ import (
 	"vendetta-x/server/internal/bbslist"
 	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/door"
+	"vendetta-x/server/internal/ftn"
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
@@ -103,6 +104,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.bulletins, _ = bulletin.New(st.DB())
 	s.events, _ = schedule.New(st.DB())
 	s.guard, _ = guard.New(st.DB())
+	s.ftn, _ = ftn.NewStore(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -238,6 +240,13 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/doors", s.admin(s.sysopDoorSave))
 	mux.HandleFunc("POST /sysop/doors/{id}/delete", s.admin(s.sysopDoorDelete))
 
+	// FTN message networks
+	mux.HandleFunc("GET /sysop/ftn", s.admin(s.sysopFTN))
+	mux.HandleFunc("GET /sysop/ftn/{id}", s.admin(s.sysopFTNEdit))
+	mux.HandleFunc("POST /sysop/ftn", s.admin(s.sysopFTNSave))
+	mux.HandleFunc("POST /sysop/ftn/{id}/delete", s.admin(s.sysopFTNDelete))
+	mux.HandleFunc("POST /sysop/ftn/run", s.admin(s.sysopFTNRun))
+
 	// bans (door policy)
 	mux.HandleFunc("GET /sysop/bans", s.admin(s.sysopBans))
 	mux.HandleFunc("POST /sysop/bans", s.admin(s.sysopBanAdd))
@@ -321,6 +330,7 @@ type server struct {
 	bulletins *bulletin.Store
 	events    *schedule.Store
 	guard     *guard.Store
+	ftn       *ftn.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being

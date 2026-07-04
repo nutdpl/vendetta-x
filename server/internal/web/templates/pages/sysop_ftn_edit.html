@@ -1,0 +1,45 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "ftn")}}
+
+<section class="panel">
+  <h2 class="ph">{{if .Link.ID}}edit {{.Link.Name}}{{else}}join a network{{end}}</h2>
+  <form method="post" action="/sysop/ftn" class="authform" autocomplete="off">
+    <input type="hidden" name="id" value="{{.Link.ID}}">
+    <div class="cols">
+      <div class="field">
+        <label for="f-name">network name (tags imported messages)</label>
+        <input id="f-name" type="text" name="name" maxlength="20" value="{{.Link.Name}}" placeholder="fsxNet" required>
+      </div>
+      <div class="field">
+        <label for="f-host">hub host (host or host:port, BinkP port 24554 assumed)</label>
+        <input id="f-host" type="text" name="host" maxlength="120" value="{{.Link.Host}}" placeholder="agency.bbs.nz" required>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="field">
+        <label for="f-our">our node address (assigned by the network)</label>
+        <input id="f-our" type="text" name="our_addr" maxlength="24" value="{{.Link.OurAddr}}" placeholder="21:1/999" required>
+      </div>
+      <div class="field">
+        <label for="f-hub">hub address</label>
+        <input id="f-hub" type="text" name="hub_addr" maxlength="24" value="{{.Link.HubAddr}}" placeholder="21:1/100" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-pass">session password</label>
+      <input id="f-pass" type="password" name="password" maxlength="40" value="{{.Link.Password}}">
+    </div>
+    <div class="field">
+      <label for="f-echoes">echo map -- one "ECHO_TAG = local board tag" per line</label>
+      <textarea id="f-echoes" name="echoes" rows="8" placeholder="# fsxNet general chatter into the gen board&#10;FSX_GEN = gen&#10;FSX_BBS = scene">{{.Echos}}</textarea>
+    </div>
+    <div class="field field-check">
+      <label><input type="checkbox" name="enabled" value="1" {{if .Link.Enabled}}checked{{end}}{{if not .Link.ID}} checked{{end}}> enabled (polled by the exchange)</label>
+    </div>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">save</button>
+      <a class="btn" href="/sysop/ftn">cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}
