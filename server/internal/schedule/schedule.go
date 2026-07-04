@@ -49,6 +49,11 @@ var Catalog = []ActionDef{
 		Label: "QWK-net exchange",
 		Desc:  "Uploads new local messages to the QWK network hub and imports the network's new messages. Configure the hub under sysop / qwk-net first.",
 	},
+	{
+		Key:   "db.backup",
+		Label: "Database backup",
+		Desc:  "Writes a consistent snapshot of the whole board (one SQLite file) into the backup directory and prunes old snapshots. The board ships with this scheduled nightly.",
+	},
 }
 
 // Event is one scheduled action, in one of two modes: run Action once a day

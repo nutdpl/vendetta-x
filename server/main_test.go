@@ -11,6 +11,7 @@ import (
 	"vendetta-x/server/internal/chat"
 	"vendetta-x/server/internal/door"
 	"vendetta-x/server/internal/gfiles"
+	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
@@ -54,6 +55,10 @@ func newTestBoard(t *testing.T) *board {
 	if err != nil {
 		t.Fatalf("door.New: %v", err)
 	}
+	guardStore, err := guard.New(st.DB())
+	if err != nil {
+		t.Fatalf("guard: %v", err)
+	}
 	return &board{
 		st:            st,
 		pres:          newPresence(),
@@ -64,6 +69,7 @@ func newTestBoard(t *testing.T) *board {
 		bbslist:       bbsStore,
 		gfiles:        gfileStore,
 		doorStore:     doorStore,
+		guard:         guardStore,
 		idle:          0,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}

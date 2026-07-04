@@ -172,16 +172,30 @@ func (s *server) sysopUserDelete(w http.ResponseWriter, r *http.Request) {
 
 // ---- oneliners (the wall) moderation ---------------------------------------
 
-// sysopOneliners lists the wall with a delete control per entry.
+// sysopOneliners lists the wall (and the current automessage) with delete
+// controls.
 func (s *server) sysopOneliners(w http.ResponseWriter, r *http.Request) {
 	liners, err := s.st.Oneliners(0)
 	if err != nil {
 		log.Printf("web: sysop oneliners: %v", err)
 	}
+	amAuthor, amText, amAt := s.st.Automessage()
 	s.render(w, "sysop_oneliners", struct {
 		pageData
-		Liners []store.Oneliner
-	}{s.base(r, "sysop / the wall", "oneliners"), liners})
+		Liners   []store.Oneliner
+		AmAuthor string
+		AmText   string
+		AmAt     time.Time
+	}{s.base(r, "sysop / the wall", "oneliners"), liners, amAuthor, amText, amAt})
+}
+
+// sysopAutomessageClear wipes the automessage (the admin wrapper audit-logs
+// the action like every other sysop mutation).
+func (s *server) sysopAutomessageClear(w http.ResponseWriter, r *http.Request) {
+	if err := s.st.SetAutomessage("", ""); err != nil {
+		log.Printf("web: sysop automessage clear: %v", err)
+	}
+	http.Redirect(w, r, "/sysop/oneliners", http.StatusSeeOther)
 }
 
 // sysopOnelinerDelete removes one wall entry, then returns to the list.

@@ -38,6 +38,7 @@ import (
 	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/door"
 	"vendetta-x/server/internal/gfiles"
+	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/schedule"
 	"vendetta-x/server/internal/store"
@@ -101,6 +102,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.doorStore, _ = door.New(st.DB())
 	s.bulletins, _ = bulletin.New(st.DB())
 	s.events, _ = schedule.New(st.DB())
+	s.guard, _ = guard.New(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -236,9 +238,20 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/doors", s.admin(s.sysopDoorSave))
 	mux.HandleFunc("POST /sysop/doors/{id}/delete", s.admin(s.sysopDoorDelete))
 
+	// bans (door policy)
+	mux.HandleFunc("GET /sysop/bans", s.admin(s.sysopBans))
+	mux.HandleFunc("POST /sysop/bans", s.admin(s.sysopBanAdd))
+	mux.HandleFunc("POST /sysop/bans/{id}/delete", s.admin(s.sysopBanDelete))
+
+	// upload review queue
+	mux.HandleFunc("GET /sysop/uploads", s.admin(s.sysopUploads))
+	mux.HandleFunc("POST /sysop/uploads/{id}/approve", s.admin(s.sysopUploadApprove))
+	mux.HandleFunc("POST /sysop/uploads/{id}/reject", s.admin(s.sysopUploadReject))
+
 	// the wall (moderation)
 	mux.HandleFunc("GET /sysop/oneliners", s.admin(s.sysopOneliners))
 	mux.HandleFunc("POST /sysop/oneliners/{id}/delete", s.admin(s.sysopOnelinerDelete))
+	mux.HandleFunc("POST /sysop/oneliners/automessage/clear", s.admin(s.sysopAutomessageClear))
 
 	// global settings (board identity, new-user defaults, feature toggles)
 	mux.HandleFunc("GET /sysop/settings", s.admin(s.sysopSettings))
@@ -307,6 +320,7 @@ type server struct {
 	doorStore *door.Store
 	bulletins *bulletin.Store
 	events    *schedule.Store
+	guard     *guard.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being

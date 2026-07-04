@@ -7,6 +7,12 @@ Vendetta/X is a modern Go BBS served over telnet, ssh, and the web; this study
 is the feature reference its roadmap draws on. Much of the "must-have" set below
 is already shipping — see `../CHANGELOG.md`.
 
+> **Status note (2026-07):** the gap tables in §2 and the build order in §3
+> describe the board as it stood *before* the 0.9.0 Go server; most of Phase 4
+> and much of Phase 5 has since shipped. Treat this document as the idea
+> backlog / concept reference. The current, code-verified state and the live
+> build plan are in **`ROADMAP.md`**.
+
 ---
 
 ## 1. The Complete BBS Feature Map

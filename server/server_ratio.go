@@ -12,8 +12,8 @@ import (
 // The numeric policy lives in the store (store/ratio.go) so the web face
 // enforces it identically; this file is just the telnet/ssh formatting.
 
-func (b *board) ratioEnabled() bool                 { return b.st.RatioEnabled() }
-func (b *board) ratioExempt(user *store.User) bool  { return b.st.RatioExempt(user) }
+func (b *board) ratioEnabled() bool                    { return b.st.RatioEnabled() }
+func (b *board) ratioExempt(user *store.User) bool     { return b.st.RatioExempt(user) }
 func (b *board) downloadAllowance(u *store.User) int64 { return b.st.DownloadAllowance(u) }
 
 // ratioBlocksDownload reports whether the ratio would block downloading a file

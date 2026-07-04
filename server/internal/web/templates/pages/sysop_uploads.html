@@ -1,0 +1,40 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "uploads")}}
+
+<section class="panel">
+  <h2 class="ph">upload review queue <span class="chip">{{len .Pending}}</span></h2>
+  {{if not .Moderate}}
+    <p class="sg-note">Moderation is <b>off</b> -- uploads go live immediately. Turn on "hold new uploads for review" in <a href="/sysop/settings">settings</a> to route them through this queue.</p>
+  {{end}}
+  {{if .Pending}}
+    <table class="table">
+      <thead>
+        <tr><th>file</th><th>area</th><th>uploader</th><th>size</th><th>description</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Pending}}
+          <tr>
+            <td><b>{{.File.Filename}}</b></td>
+            <td>{{.Area}}</td>
+            <td>{{template "c-badge" (dict "label" .File.Uploader "variant" "dim")}}</td>
+            <td>{{.File.Size}} b</td>
+            <td>{{.File.Desc}}</td>
+            <td class="rowacts">
+              <form method="post" action="/sysop/uploads/{{.File.ID}}/approve">
+                <button class="btn btn-sm btn-primary" type="submit">approve</button>
+              </form>
+              <form method="post" action="/sysop/uploads/{{.File.ID}}/reject">
+                <input type="text" name="reason" maxlength="120" placeholder="reason">
+                <button class="btn btn-sm btn-danger" type="submit">reject</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">Nothing waiting. All quiet on the upload front.</p>
+  {{end}}
+  <p class="sg-note">Approve: the file goes live, the uploader's ratio credit lands, and they get a mail. Reject: the file is deleted and the uploader is mailed your reason.</p>
+</section>
+{{end}}

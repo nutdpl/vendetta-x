@@ -56,7 +56,7 @@ func (b *board) email(s *term.Session, tok map[string]string, user *store.User) 
 		case 'r':
 			b.mailRead(s, user, msgs)
 		case 'c':
-			b.mailCompose(s, user, "", "")
+			b.mailCompose(s, user, "", "", nil)
 		case 'o':
 			b.mailOutbox(s, user)
 		case 'q':
@@ -111,7 +111,7 @@ func (b *board) mailRead(s *term.Session, user *store.User, msgs []mail.Message)
 		if !strings.HasPrefix(strings.ToLower(subj), "re:") {
 			subj = "Re: " + subj
 		}
-		b.mailCompose(s, user, m.From, subj)
+		b.mailCompose(s, user, m.From, subj, quoteLines(m.From, m.Body, 72))
 	case 'd':
 		if err := b.mail.Delete(m.ID, user.Handle); err != nil {
 			s.Notice("Could not delete that message.")
@@ -124,8 +124,9 @@ func (b *board) mailRead(s *term.Session, user *store.User, msgs []mail.Message)
 
 // mailCompose runs the To/Subject prompts then the full-screen body editor
 // (exactly like postMessage), validating that the recipient exists before
-// delivering. toPre/subjPre prefill a reply.
-func (b *board) mailCompose(s *term.Session, user *store.User, toPre, subjPre string) {
+// delivering. toPre/subjPre prefill a reply; quote (may be nil) opens the
+// editor on the original message, >-quoted.
+func (b *board) mailCompose(s *term.Session, user *store.User, toPre, subjPre string, quote []string) {
 	b.screenHeader(s, "electronic mail \xfa compose")
 
 	var to string
@@ -179,7 +180,10 @@ func (b *board) mailCompose(s *term.Session, user *store.User, toPre, subjPre st
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	s.Flush()
 
-	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, nil)
+	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, quote)
+	if len(quote) > 0 {
+		ed.CursorEnd() // open under the quote, not on top of it
+	}
 	lines, saved := ed.Run()
 	// Restore a clean cursor/attr state after the editor.
 	s.Print("\x1b[0m\x1b[24;1H\r\n")

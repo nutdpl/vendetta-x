@@ -145,9 +145,15 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	next := safeNext(r.FormValue("next"))
 
+	// The door policy first: a banned address doesn't get to try passwords.
+	ip := s.clientIP(r)
+	if _, banned := s.guard.BlockedIP(ip); banned {
+		s.renderAuth(w, r, "login", "This address is not welcome here.", next, handle)
+		return
+	}
+
 	// Brute-force throttle: too many recent failures from this IP and we stop
 	// checking credentials until the window clears.
-	ip := s.clientIP(r)
 	if s.loginThrottle.Blocked(ip) {
 		s.renderAuth(w, r, "login", "Too many login attempts. Wait a few minutes and try again.", next, handle)
 		return
@@ -236,6 +242,14 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := store.ValidateHandle(handle); err != nil {
 		fail(err.Error())
+		return
+	}
+	if _, banned := s.guard.BlockedIP(s.clientIP(r)); banned {
+		fail("This address is not welcome here.")
+		return
+	}
+	if _, banned := s.guard.BlockedHandle(handle); banned {
+		fail("That handle isn't available here. Try another.")
 		return
 	}
 

@@ -129,7 +129,8 @@ Synchronet's robustness — delivered over telnet, ssh, and the web at once.
 
 ## Roadmap
 
-Forward-looking ideas, not commitments:
+The full prioritized build plan — current state, builder's playbook, and
+AI-ready feature specs — lives in `docs/ROADMAP.md`. The short version:
 
 - Richer message networking (QWK is in; a modern federation/sync is the deeper
   goal).

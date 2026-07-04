@@ -36,8 +36,11 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		RatioOn       bool
 		RatioBytes    int
 		RatioFreeMB   int
+		Moderate      bool
 		PurgeDays     int
 		OnelinerKeep  int
+		BackupDir     string
+		BackupKeep    int
 		FeatureToggle []featureToggle
 		Saved         bool
 	}{
@@ -51,8 +54,11 @@ func (s *server) sysopSettings(w http.ResponseWriter, r *http.Request) {
 		RatioOn:       s.st.RatioEnabled(),
 		RatioBytes:    s.st.RatioBytes(),
 		RatioFreeMB:   int(s.st.RatioFreeBytes() >> 20),
+		Moderate:      s.st.SettingBool("files.moderate", false),
 		PurgeDays:     s.st.SettingInt("schedule.messages.purge_days", 180),
 		OnelinerKeep:  s.st.SettingInt("schedule.oneliners.keep", 200),
+		BackupDir:     s.st.Setting("backup.dir", "backups"),
+		BackupKeep:    s.st.SettingInt("backup.keep", 7),
 		FeatureToggle: toggles,
 		Saved:         r.URL.Query().Get("ok") != "",
 	})
@@ -84,8 +90,18 @@ func (s *server) sysopSettingsSave(w http.ResponseWriter, r *http.Request) {
 	set("files.ratio.enabled", ratioOn)
 	set("files.ratio.bytes", strconv.Itoa(clampRange(r.FormValue("ratio_bytes"), 3, 1, 100)))
 	set("files.ratio.free_mb", strconv.Itoa(clampRange(r.FormValue("ratio_free_mb"), 5, 0, 100000)))
+	// Upload moderation: hold new uploads in the review queue until approved.
+	moderate := "0"
+	if r.FormValue("files_moderate") != "" {
+		moderate = "1"
+	}
+	set("files.moderate", moderate)
 	set("schedule.messages.purge_days", strconv.Itoa(clampRange(r.FormValue("purge_days"), 180, 1, 3650)))
 	set("schedule.oneliners.keep", strconv.Itoa(clampRange(r.FormValue("oneliner_keep"), 200, 1, 100000)))
+	if dir := strings.TrimSpace(r.FormValue("backup_dir")); dir != "" {
+		set("backup.dir", dir)
+	}
+	set("backup.keep", strconv.Itoa(clampRange(r.FormValue("backup_keep"), 7, 1, 365)))
 	// Each feature: a present checkbox (value "1") means on, absent means off.
 	for _, f := range store.Features {
 		on := "0"

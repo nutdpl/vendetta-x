@@ -5,7 +5,9 @@
 package store
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -61,6 +63,9 @@ type Message struct {
 	// QWK-net export selects only local messages, so imports can never loop
 	// back out to the network they came from.
 	Origin string
+	// ReplyTo is the id of the message this one replies to (0 = a fresh
+	// post). The thread chain the reader and the web view walk.
+	ReplyTo int64
 }
 
 type FileArea struct {
@@ -78,6 +83,12 @@ type FileEntry struct {
 	Size       int64
 	Uploaded   time.Time
 	Downloads  int
+	// Hash is the SHA-256 of the content (hex), the duplicate-upload check.
+	Hash string
+	// Approved is false while an upload sits in the sysop's review queue
+	// (files.moderate); unapproved files are invisible to listings, scans,
+	// and downloads on every face.
+	Approved bool
 }
 
 type Oneliner struct {
@@ -197,7 +208,8 @@ CREATE TABLE IF NOT EXISTS messages (
 	subject   TEXT NOT NULL DEFAULT '',
 	body      TEXT NOT NULL DEFAULT '',
 	posted    INTEGER NOT NULL DEFAULT 0,
-	origin    TEXT NOT NULL DEFAULT ''
+	origin    TEXT NOT NULL DEFAULT '',
+	reply_to  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_messages_board ON messages (board_id, posted DESC);
 
@@ -218,7 +230,9 @@ CREATE TABLE IF NOT EXISTS files (
 	size      INTEGER NOT NULL DEFAULT 0,
 	uploaded  INTEGER NOT NULL DEFAULT 0,
 	downloads INTEGER NOT NULL DEFAULT 0,
-	content   BLOB
+	content   BLOB,
+	hash      TEXT NOT NULL DEFAULT '',
+	approved  INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_files_area ON files (area_id);
 
@@ -232,6 +246,13 @@ CREATE TABLE IF NOT EXISTS oneliners (
 CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS lastread (
+	user_id     INTEGER NOT NULL,
+	board_id    INTEGER NOT NULL,
+	last_msg_id INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, board_id)
 );
 `
 	if _, err := s.db.Exec(schema); err != nil {
@@ -253,6 +274,9 @@ CREATE TABLE IF NOT EXISTS settings (
 		`ALTER TABLE users ADD COLUMN ul_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE users ADD COLUMN dl_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE messages ADD COLUMN origin TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE messages ADD COLUMN reply_to INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE files ADD COLUMN hash TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE files ADD COLUMN approved INTEGER NOT NULL DEFAULT 1`,
 	}
 	for _, stmt := range addColumns {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -535,7 +559,7 @@ func (s *Store) Boards() ([]Board, error) {
 
 // msgCols is the canonical column list every message query selects, matching
 // scanMessages' Scan order.
-const msgCols = `id, board_id, from_who, to_who, subject, body, posted, origin`
+const msgCols = `id, board_id, from_who, to_who, subject, body, posted, origin, reply_to`
 
 func scanMessages(rows *sql.Rows) ([]Message, error) {
 	defer rows.Close()
@@ -543,7 +567,7 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 	for rows.Next() {
 		var m Message
 		var posted int64
-		if err := rows.Scan(&m.ID, &m.BoardID, &m.From, &m.To, &m.Subject, &m.Body, &posted, &m.Origin); err != nil {
+		if err := rows.Scan(&m.ID, &m.BoardID, &m.From, &m.To, &m.Subject, &m.Body, &posted, &m.Origin, &m.ReplyTo); err != nil {
 			return nil, fmt.Errorf("store: messages scan: %w", err)
 		}
 		m.Posted = fromUnix(posted)
@@ -600,6 +624,55 @@ func (s *Store) LocalMessagesAfter(boardID, afterID int64) ([]Message, error) {
 	return scanMessages(rows)
 }
 
+// FileCountsAfter returns, per file area, how many files were uploaded after
+// t -- the "new files since your last call" digest feed. The caller applies
+// its own area-ACS filtering.
+func (s *Store) FileCountsAfter(t time.Time) (map[int64]int, error) {
+	rows, err := s.db.Query(
+		`SELECT area_id, COUNT(*) FROM files
+		 WHERE uploaded > ? AND approved != 0 GROUP BY area_id`,
+		toUnix(t))
+	if err != nil {
+		return nil, fmt.Errorf("store: file counts after: %w", err)
+	}
+	defer rows.Close()
+	counts := map[int64]int{}
+	for rows.Next() {
+		var areaID int64
+		var n int
+		if err := rows.Scan(&areaID, &n); err != nil {
+			return nil, fmt.Errorf("store: file counts scan: %w", err)
+		}
+		counts[areaID] = n
+	}
+	return counts, rows.Err()
+}
+
+// NewUsersSince counts accounts whose first call is after t -- fresh blood
+// for the logon digest.
+func (s *Store) NewUsersSince(t time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM users WHERE first_call > ?`, toUnix(t)).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("store: new users since: %w", err)
+	}
+	return n, nil
+}
+
+// MessageByID returns one message, or nil when it doesn't exist.
+func (s *Store) MessageByID(id int64) (*Message, error) {
+	rows, err := s.db.Query(`SELECT `+msgCols+` FROM messages WHERE id = ?`, id)
+	if err != nil {
+		return nil, fmt.Errorf("store: message by id: %w", err)
+	}
+	msgs, err := scanMessages(rows)
+	if err != nil || len(msgs) == 0 {
+		return nil, err
+	}
+	return &msgs[0], nil
+}
+
 // HasMessage reports whether a message with this exact board, author, subject,
 // and posted time already exists -- the dedup check QWK-net import runs before
 // posting, since QWK carries no message ids. It also catches our own posts
@@ -627,9 +700,9 @@ func (s *Store) PostMessage(m *Message) (int64, error) {
 		posted = time.Now()
 	}
 	res, err := s.db.Exec(
-		`INSERT INTO messages (board_id, from_who, to_who, subject, body, posted, origin)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		m.BoardID, m.From, m.To, m.Subject, m.Body, toUnix(posted), m.Origin)
+		`INSERT INTO messages (board_id, from_who, to_who, subject, body, posted, origin, reply_to)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		m.BoardID, m.From, m.To, m.Subject, m.Body, toUnix(posted), m.Origin, m.ReplyTo)
 	if err != nil {
 		return 0, fmt.Errorf("store: post message: %w", err)
 	}
@@ -661,21 +734,18 @@ func (s *Store) FileAreas() ([]FileArea, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) Files(areaID int64) ([]FileEntry, error) {
-	rows, err := s.db.Query(
-		`SELECT id, area_id, filename, descr, uploader, size, uploaded, downloads
-		 FROM files WHERE area_id = ? ORDER BY filename COLLATE NOCASE`, areaID)
-	if err != nil {
-		return nil, fmt.Errorf("store: files area %d: %w", areaID, err)
-	}
+// fileCols is the canonical file column list, matching scanFile's Scan order.
+const fileCols = `id, area_id, filename, descr, uploader, size, uploaded, downloads, hash, approved`
+
+func scanFileRows(rows *sql.Rows, wrap string) ([]FileEntry, error) {
 	defer rows.Close()
 	var out []FileEntry
 	for rows.Next() {
 		var f FileEntry
 		var uploaded int64
 		if err := rows.Scan(&f.ID, &f.AreaID, &f.Filename, &f.Desc, &f.Uploader,
-			&f.Size, &uploaded, &f.Downloads); err != nil {
-			return nil, fmt.Errorf("store: files scan: %w", err)
+			&f.Size, &uploaded, &f.Downloads, &f.Hash, &f.Approved); err != nil {
+			return nil, fmt.Errorf("store: %s scan: %w", wrap, err)
 		}
 		f.Uploaded = fromUnix(uploaded)
 		out = append(out, f)
@@ -683,29 +753,82 @@ func (s *Store) Files(areaID int64) ([]FileEntry, error) {
 	return out, rows.Err()
 }
 
-// FileByID returns a file's metadata (no content), or nil,nil if not found.
-func (s *Store) FileByID(id int64) (*FileEntry, error) {
-	row := s.db.QueryRow(
-		`SELECT id, area_id, filename, descr, uploader, size, uploaded, downloads
-		 FROM files WHERE id = ?`, id)
-	var f FileEntry
-	var uploaded int64
-	err := row.Scan(&f.ID, &f.AreaID, &f.Filename, &f.Desc, &f.Uploader,
-		&f.Size, &uploaded, &f.Downloads)
-	if err == sql.ErrNoRows {
+// Files lists an area's approved files; queue-held uploads stay invisible.
+func (s *Store) Files(areaID int64) ([]FileEntry, error) {
+	rows, err := s.db.Query(
+		`SELECT `+fileCols+`
+		 FROM files WHERE area_id = ? AND approved != 0
+		 ORDER BY filename COLLATE NOCASE`, areaID)
+	if err != nil {
+		return nil, fmt.Errorf("store: files area %d: %w", areaID, err)
+	}
+	return scanFileRows(rows, "files")
+}
+
+// PendingFiles lists every upload waiting in the review queue, oldest first.
+func (s *Store) PendingFiles() ([]FileEntry, error) {
+	rows, err := s.db.Query(
+		`SELECT ` + fileCols + ` FROM files WHERE approved = 0 ORDER BY uploaded`)
+	if err != nil {
+		return nil, fmt.Errorf("store: pending files: %w", err)
+	}
+	return scanFileRows(rows, "pending files")
+}
+
+// FileByHash returns any file (approved or pending) with this content hash --
+// the duplicate-upload check. nil,nil when the content is new.
+func (s *Store) FileByHash(hash string) (*FileEntry, error) {
+	if hash == "" {
 		return nil, nil
 	}
+	rows, err := s.db.Query(
+		`SELECT `+fileCols+` FROM files WHERE hash = ? LIMIT 1`, hash)
+	if err != nil {
+		return nil, fmt.Errorf("store: file by hash: %w", err)
+	}
+	files, err := scanFileRows(rows, "file by hash")
+	if err != nil || len(files) == 0 {
+		return nil, err
+	}
+	return &files[0], nil
+}
+
+// ApproveFile releases a queued upload into its area's listing.
+func (s *Store) ApproveFile(id int64) error {
+	if _, err := s.db.Exec(`UPDATE files SET approved = 1 WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("store: approve file %d: %w", id, err)
+	}
+	return nil
+}
+
+// DeleteFile removes one file (a rejected upload, or sysop cleanup).
+func (s *Store) DeleteFile(id int64) error {
+	if _, err := s.db.Exec(`DELETE FROM files WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("store: delete file %d: %w", id, err)
+	}
+	return nil
+}
+
+// FileByID returns a file's metadata (no content), or nil,nil if not found.
+// It returns pending files too (Approved says which) -- callers serving
+// downloads must check Approved; the sysop queue needs the row either way.
+func (s *Store) FileByID(id int64) (*FileEntry, error) {
+	rows, err := s.db.Query(`SELECT `+fileCols+` FROM files WHERE id = ?`, id)
 	if err != nil {
 		return nil, fmt.Errorf("store: file by id %d: %w", id, err)
 	}
-	f.Uploaded = fromUnix(uploaded)
-	return &f, nil
+	files, err := scanFileRows(rows, "file by id")
+	if err != nil || len(files) == 0 {
+		return nil, err
+	}
+	return &files[0], nil
 }
 
-// FileContent returns the stored bytes for a file (nil if the row has no
-// content), or an error. A missing file id yields nil,nil.
+// FileContent returns the stored bytes for an APPROVED file (nil if the row
+// has no content); a queue-held upload's bytes are not served to callers.
+// A missing file id yields nil,nil.
 func (s *Store) FileContent(id int64) ([]byte, error) {
-	row := s.db.QueryRow(`SELECT content FROM files WHERE id = ?`, id)
+	row := s.db.QueryRow(`SELECT content FROM files WHERE id = ? AND approved != 0`, id)
 	var content []byte
 	err := row.Scan(&content)
 	if err == sql.ErrNoRows {
@@ -725,13 +848,25 @@ func (s *Store) IncDownload(id int64) error {
 	return nil
 }
 
-// AddFile stores an uploaded file (its bytes become the content; size is the
-// byte length). Returns the new file id.
+// AddFile stores an uploaded file, live immediately (its bytes become the
+// content; size is the byte length). Returns the new file id.
 func (s *Store) AddFile(areaID int64, filename, desc, uploader string, content []byte) (int64, error) {
+	return s.addFile(areaID, filename, desc, uploader, content, true)
+}
+
+// AddPendingFile stores an upload into the sysop review queue: invisible to
+// listings, scans, and downloads until ApproveFile releases it.
+func (s *Store) AddPendingFile(areaID int64, filename, desc, uploader string, content []byte) (int64, error) {
+	return s.addFile(areaID, filename, desc, uploader, content, false)
+}
+
+func (s *Store) addFile(areaID int64, filename, desc, uploader string, content []byte, approved bool) (int64, error) {
+	sum := sha256.Sum256(content)
 	res, err := s.db.Exec(
-		`INSERT INTO files (area_id, filename, descr, uploader, size, uploaded, downloads, content)
-		 VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
-		areaID, filename, desc, uploader, int64(len(content)), toUnix(time.Now()), content)
+		`INSERT INTO files (area_id, filename, descr, uploader, size, uploaded, downloads, content, hash, approved)
+		 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+		areaID, sanitize.Line(filename), sanitize.Line(desc), sanitize.Line(uploader),
+		int64(len(content)), toUnix(time.Now()), content, hex.EncodeToString(sum[:]), approved)
 	if err != nil {
 		return 0, fmt.Errorf("store: add file %q: %w", filename, err)
 	}

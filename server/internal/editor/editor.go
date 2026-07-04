@@ -87,6 +87,14 @@ func New(c Console, originRow, originCol, width, height int, lines []string) *Ed
 	}
 }
 
+// CursorEnd moves the cursor to the end of the buffer -- where a reply
+// composer wants to open when the buffer is prefilled with quoted text.
+// draw()'s scroll() brings the window along on the first paint.
+func (e *Editor) CursorEnd() {
+	e.row = len(e.lines) - 1
+	e.col = len(e.lines[e.row])
+}
+
 // Run draws the editor and drives the edit loop until the user saves or aborts.
 // On save it returns the buffer's lines and saved=true; on abort or carrier
 // loss it returns nil, false.

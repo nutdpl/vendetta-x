@@ -8,6 +8,94 @@ semantic versioning.
 
 ### Added
 
+- **Nightly backups, out of the box.** A fresh board ships with a scheduled
+  `db.backup` event (04:00): each run writes a consistent `VACUUM INTO`
+  snapshot of the whole board into the backup directory (sysop-configurable,
+  default `backups/`, keep-last-7) -- safe with callers online, with a
+  catch-up run at startup if the board slept through one. Restore runbook
+  in `deploy/README.md`, plus a `/healthz` endpoint for uptime monitors.
+- **Bans and the trashcan.** The new sysop / bans page lays down durable
+  door policy: single-IP and CIDR-range bans (connection dropped before the
+  board answers, on every face) and handle patterns no new account may
+  contain -- each with a reason and optional expiry. The loopback console
+  can never be banned, so a sysop can't lock themselves out.
+
+- **A real goodbye.** Logging off now paints a proper send-off piece --
+  GOODBYE in the board's TDF wordmark over the star field, "later,
+  <handle>. the wall remembers.", live node/user/call counts -- with the
+  modem's own `NO CARRIER` as the last word, instead of a bare one-liner.
+
+- **Real upload intake on both faces.** A ZIP that carries a `FILE_ID.DIZ`
+  now describes itself in the listing (the scene standard; the typed line is
+  the fallback), and exact duplicate uploads are refused board-wide by
+  content hash before they cost anyone anything.
+- **An upload review queue.** Flip "hold new uploads for review" in settings
+  and caller uploads wait -- invisible to listings, scans, and downloads on
+  every face -- in the new `/sysop/uploads` queue. Approve: the file goes
+  live, the uploader's ratio credit lands, and they're mailed the good news.
+  Reject: the file is deleted and the uploader is mailed your reason.
+  Sysops bypass the queue; credit lands on approval, so junk can't farm
+  ratio.
+
+- **The automessage** -- one board-wide shout, claimable by any caller (WWIV
+  heritage). It sits above the wall on the oneliners screen; start your wall
+  line with `!` to claim it, and whoever claims it last owns it until the
+  next caller does. The sysop can clear it from the wall-moderation page.
+- **A fuller "since your last call" digest at logon.** Alongside new
+  messages and unread mail, the greeting now counts **new files** in areas
+  you can see and **new callers** who joined since you were last on.
+
+- **Page Sysop** -- the classic doorbell, now real. `P` from the main menu:
+  state your business, the board runs the paging beat, and the page lands in
+  the operator's mailbox (subject `PAGE: ...`), with the caller told whether
+  an operator is on the board right now. Sysop-toggleable like every other
+  feature.
+- **Who's-online now shows what everyone is doing.** The node list grew the
+  classic Node / Caller / Doing columns -- "in the message bases", "in
+  teleconference", "paging the sysop", "in the doors" -- updated live as
+  callers move around the board.
+
+- **Threaded replies with classic auto-quote.** Replying now opens the editor
+  on the original, `Handle>`-quoted (wrapped, capped, cursor underneath), and
+  the post remembers what it answers. The reader footer grows **[T]hread** on
+  any reply -- one key walks up to the original. Private mail replies quote
+  the same way. On the web, boards render as real threads (replies hang
+  indented under their post with a "re:" credit), every message has a
+  **reply** link that prefills the quoted form, and a forged/stale reply id
+  safely posts as a fresh thread root.
+
+- **Read pointers (the classic qscan).** The board now remembers, per caller
+  per base, the last message read. The reader resumes at the oldest unread
+  message and advances the pointer as you go; **[N]ew scan** walks every base
+  you can read and steps through only what arrived since your last visit
+  (skip a base, quit anytime, reply in place). The base picker grew a **New**
+  column, the logon greeting counts what's waiting ("3 new in 2 bases", plus
+  unread private mail), and on the web the board index shows **"n new"**
+  badges with viewing a board catching you up. One pointer store drives all
+  three faces.
+
+### Changed
+
+- **The message reader header now wears the menu treatment.** The old
+  gradient double-line box is gone; in its place, the same visual language
+  as every menu screen: a two-row eroded gradient bar with half-block bite,
+  iCE-color hotspots and glints up top, the dithered circuit-trace divider,
+  a cyan-to-red gradient rail down the From/To/Subject/Date rows, and a
+  bitten half-block base rule under the header. Same row count, same token
+  alignment -- message bodies line up exactly as before.
+
+### Fixed
+
+- The main menu's `C` slot was labeled **"Page Sysop" but opened the
+  teleconference** -- and the teleconference itself was listed nowhere.
+  `C` is now labeled Teleconference (what it always ran), and the new `P`
+  Page Sysop entry drives the real paging feature.
+- The message and file submenus' lightbars carried hardcoded seeded area
+  names instead of the command set the board acts on, leaving Read / Post /
+  New Scan (and List & Download / New Files) unreachable from the menu.
+  Regenerated both screens with the real commands plus a live
+  "current · base" line so callers can see what they're acting on.
+
 - A cinematic **connect entrance**. Every caller (telnet and ssh) now lands on a
   short, paced modem handshake (`CONNECT 57600/ARQ/V90/LAPM/V42BIS`), then the
   **flagship loginscreen** -- a full 80x30 piece that scrolls as it paints: a

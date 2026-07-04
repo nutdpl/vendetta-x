@@ -39,17 +39,36 @@ func (b *board) showMessage(s *term.Session, bd *store.Board, msgs []store.Messa
 	if canPost {
 		reply = "  \x1b[0;37m[\x1b[1;37mR\x1b[0;37m]eply"
 	}
-	s.Printf("  \x1b[0;37m[\x1b[1;37mP\x1b[0;37m]rev  [\x1b[1;37mN\x1b[0;37m]ext%s  [\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;30m\xb7 \x1b[0;37mmsg \x1b[1;37m%d\x1b[0;37m/\x1b[1;37m%d \x1b[1;36m> \x1b[1;37m",
-		reply, i+1, len(msgs))
+	thread := ""
+	if m.ReplyTo != 0 {
+		thread = "  \x1b[0;37m[\x1b[1;37mT\x1b[0;37m]hread\x1b[1;30m\x18\x1b[0;37m" // up-arrow: this is a reply
+	}
+	s.Printf("  \x1b[0;37m[\x1b[1;37mP\x1b[0;37m]rev  [\x1b[1;37mN\x1b[0;37m]ext%s%s  [\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;30m\xb7 \x1b[0;37mmsg \x1b[1;37m%d\x1b[0;37m/\x1b[1;37m%d \x1b[1;36m> \x1b[1;37m",
+		reply, thread, i+1, len(msgs))
 	s.Flush()
 }
 
-// postReply composes a reply to m: addressed back to its sender, subject
-// pre-filled with a "Re:" of the original (not doubled if it already has one).
+// threadParent returns the index in msgs of m's parent, or -1 when m isn't a
+// reply or the original has scrolled out of the loaded window.
+func threadParent(msgs []store.Message, m store.Message) int {
+	if m.ReplyTo == 0 {
+		return -1
+	}
+	for j := range msgs {
+		if msgs[j].ID == m.ReplyTo {
+			return j
+		}
+	}
+	return -1
+}
+
+// postReply composes a threaded reply to m: addressed back to its sender,
+// subject pre-filled with a "Re:" of the original (not doubled if it already
+// has one), the editor opened on the original >-quoted.
 func (b *board) postReply(s *term.Session, bd *store.Board, user *store.User, m store.Message) {
 	subj := strings.TrimSpace(m.Subject)
 	if !strings.HasPrefix(strings.ToLower(subj), "re:") {
 		subj = "Re: " + subj
 	}
-	b.compose(s, bd, user, m.From, subj)
+	b.compose(s, bd, user, m.From, subj, &m)
 }

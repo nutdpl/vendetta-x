@@ -58,11 +58,23 @@
       <label for="s-rf">free download allowance (MB)</label>
       <input id="s-rf" type="number" name="ratio_free_mb" min="0" max="100000" value="{{.RatioFreeMB}}">
     </div>
+    <div class="field field-check">
+      <label><input type="checkbox" name="files_moderate" value="1" {{if .Moderate}}checked{{end}}> hold new uploads for review</label>
+    </div>
+    <p class="sg-note">When on, uploads from regular callers wait in the <a href="/sysop/uploads">upload queue</a> until you approve them; upload credit lands on approval. Sysops bypass the queue.</p>
   </section>
 
   <section class="panel">
     <h2 class="ph">maintenance</h2>
     <p class="sg-note">Defaults used by the <a href="/sysop/events">scheduled events</a> panel's built-in actions.</p>
+    <div class="field">
+      <label for="s-bdir">backup directory (the nightly snapshot of the whole board)</label>
+      <input id="s-bdir" type="text" name="backup_dir" maxlength="200" value="{{.BackupDir}}">
+    </div>
+    <div class="field">
+      <label for="s-bkeep">backups to keep</label>
+      <input id="s-bkeep" type="number" name="backup_keep" min="1" max="365" value="{{.BackupKeep}}">
+    </div>
     <div class="field">
       <label for="s-purge">purge messages older than (days)</label>
       <input id="s-purge" type="number" name="purge_days" min="1" max="3650" value="{{.PurgeDays}}">

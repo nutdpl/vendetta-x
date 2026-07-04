@@ -7,6 +7,7 @@ import (
 
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
+	"vendetta-x/server/internal/upload"
 	"vendetta-x/server/internal/zmodem"
 )
 
@@ -90,18 +91,44 @@ func (b *board) uploadFile(s *term.Session, user *store.User, area *store.FileAr
 	}
 
 	name := sanitizeUploadName(f.Name)
-	id, err := b.st.AddFile(area.ID, name, desc, user.Handle, f.Data)
-	if err != nil {
+
+	// Duplicate check: the same bytes anywhere on the board means the
+	// release is already here -- refuse before it costs anyone anything.
+	if dupe, err := b.st.FileByHash(upload.Hash(f.Data)); err == nil && dupe != nil {
+		s.Notice("Already on the board: that exact file is up as " + dupe.Filename + ".")
+		return
+	}
+
+	// A ZIP carrying FILE_ID.DIZ describes itself; the typed line is the
+	// fallback (scene rules: the release speaks for the release).
+	autoDesc := upload.Describe(f.Data, desc)
+	dizUsed := autoDesc != desc
+
+	if b.st.SettingBool("files.moderate", false) && !b.st.RatioExempt(user) {
+		if _, err := b.st.AddPendingFile(area.ID, name, autoDesc, user.Handle, f.Data); err != nil {
+			s.Notice("Could not store the upload.")
+			return
+		}
+		s.Printf("\r\n\x1b[1;32m  Received \x1b[1;37m%s\x1b[1;32m (\x1b[1;37m%s\x1b[1;32m).\x1b[0m\r\n",
+			name, sizeStr(int64(len(f.Data))))
+		s.Print("\x1b[0;37m  It's in the sysop's review queue -- it goes live (and your upload\r\n" +
+			"  credit lands) once they wave it through.\x1b[0m\r\n")
+		return
+	}
+
+	if _, err := b.st.AddFile(area.ID, name, autoDesc, user.Handle, f.Data); err != nil {
 		s.Notice("Could not store the upload.")
 		return
 	}
-	_ = id
 	if err := b.st.AddUploadBytes(user.ID, int64(len(f.Data))); err == nil {
 		user.UlBytes += int64(len(f.Data))
 		user.Uploads++
 	}
 	s.Printf("\r\n\x1b[1;32m  Received \x1b[1;37m%s\x1b[1;32m (\x1b[1;37m%s\x1b[1;32m). Thanks for "+
 		"the contribution.\x1b[0m\r\n", name, sizeStr(int64(len(f.Data))))
+	if dizUsed {
+		s.Print("\x1b[1;30m  (described from the archive's FILE_ID.DIZ)\x1b[0m\r\n")
+	}
 }
 
 // sanitizeUploadName strips path separators and control bytes from a

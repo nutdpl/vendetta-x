@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -42,6 +43,7 @@ import (
 	"vendetta-x/server/internal/dragon"
 	"vendetta-x/server/internal/editor"
 	"vendetta-x/server/internal/gfiles"
+	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
 	"vendetta-x/server/internal/render"
 	"vendetta-x/server/internal/schedule"
@@ -126,6 +128,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("schedule: %v", err)
 	}
+	guardStore, err := guard.New(st.DB())
+	if err != nil {
+		log.Fatalf("guard: %v", err)
+	}
+
+	// A fresh board ships with the nightly backup already scheduled -- the
+	// one maintenance job a sysop must never have to remember to set up.
+	if evs, err := scheduleStore.List(); err == nil && len(evs) == 0 {
+		if _, err := scheduleStore.Add(&schedule.Event{
+			Name: "nightly backup", Action: "db.backup", TimeOfDay: "04:00", Enabled: true,
+		}); err != nil {
+			log.Printf("seed nightly backup: %v", err)
+		}
+	}
 
 	pres := newPresence()
 	bbs := &board{
@@ -136,6 +152,7 @@ func main() {
 		void:          voidStore,
 		bulletins:     bulletinStore,
 		events:        scheduleStore,
+		guard:         guardStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -179,6 +196,15 @@ func main() {
 		LoginThrottle: bbs.loginThrottle,
 	}
 	mux := http.NewServeMux()
+	// /healthz: the uptime-monitor hook -- 200 with a node count while the
+	// database answers, 503 the moment it doesn't. Boring by design.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if err := st.DB().Ping(); err != nil {
+			http.Error(w, "db unreachable", http.StatusServiceUnavailable)
+			return
+		}
+		fmt.Fprintf(w, "ok %d nodes\n", len(pres.list()))
+	})
 	mux.Handle("/", web.New(st, pres.list, webCfg))
 	srv := &http.Server{
 		Addr:    *httpAddr,
@@ -240,16 +266,23 @@ func main() {
 type presence struct {
 	mu   sync.Mutex
 	next int
-	who  map[int]string
+	who  map[int]*presEntry
 }
 
-func newPresence() *presence { return &presence{who: map[int]string{}} }
+func newPresence() *presence { return &presence{who: map[int]*presEntry{}} }
+
+// presEntry is one online node: who is on it and what they're doing right
+// now -- the activity column classic multinode boards showed on who's-online.
+type presEntry struct {
+	who      string
+	activity string
+}
 
 func (p *presence) join(who string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.next++
-	p.who[p.next] = who
+	p.who[p.next] = &presEntry{who: who}
 	return p.next
 }
 
@@ -262,8 +295,17 @@ func (p *presence) leave(id int) {
 func (p *presence) rename(id int, who string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, ok := p.who[id]; ok {
-		p.who[id] = who
+	if e, ok := p.who[id]; ok {
+		e.who = who
+	}
+}
+
+// setActivity updates a node's "doing" string (shown on who's-online).
+func (p *presence) setActivity(id int, activity string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if e, ok := p.who[id]; ok {
+		e.activity = activity
 	}
 }
 
@@ -272,10 +314,30 @@ func (p *presence) list() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make([]string, 0, len(p.who))
-	for _, w := range p.who {
-		out = append(out, w)
+	for _, e := range p.who {
+		out = append(out, e.who)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// presRow is one row of the detailed who's-online snapshot.
+type presRow struct {
+	Node     int
+	Who      string
+	Activity string
+}
+
+// snapshot returns every node in node order with its activity, for the
+// terminal who's-online table.
+func (p *presence) snapshot() []presRow {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make([]presRow, 0, len(p.who))
+	for id, e := range p.who {
+		out = append(out, presRow{Node: id, Who: e.who, Activity: e.activity})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Node < out[j].Node })
 	return out
 }
 
@@ -297,6 +359,7 @@ type board struct {
 	void      *void.Store
 	bulletins *bulletin.Store
 	events    *schedule.Store
+	guard     *guard.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
@@ -453,6 +516,15 @@ func (b *board) RunBoard(s *term.Session) { b.runBoard(s) }
 // main menu loop.
 func (b *board) runBoard(s *term.Session) {
 	host := hostOf(s.RemoteAddr())
+
+	// The door policy: a banned address gets the dial tone, nothing else.
+	// Checked before the connect ceremony so a banned bot costs one line.
+	if _, banned := b.guard.BlockedIP(host); banned {
+		s.Print("\r\nNO CARRIER\r\n")
+		s.Flush()
+		return
+	}
+
 	id := b.pres.join("connecting@" + host)
 	defer b.pres.leave(id)
 
@@ -475,10 +547,19 @@ func (b *board) runBoard(s *term.Session) {
 	tok["UH"] = user.Handle
 	b.pres.rename(id, user.Handle+"@"+host)
 
+	b.pres.setActivity(id, "logging on")
 	b.logon(s, tok, user)
-	b.mainMenu(s, tok, user)
+	b.mainMenu(s, tok, user, id)
 
-	s.Print("\x1b[0m\r\n  Later, " + user.Handle + ". NO CARRIER\r\n")
+	// The send-off: the goodbye piece with the caller's handle spliced in, a
+	// beat to take it in, then the modem's own last word. Fresh stat tokens
+	// so the farewell counts are as live as the login's were.
+	b.pres.setActivity(id, "logging off")
+	b.loginTokens(tok)
+	s.RenderScreen(b.art+"/goodbye.pp", tok)
+	s.Flush()
+	s.Sleep(1500 * time.Millisecond)
+	s.Print("\x1b[0m\r\n  NO CARRIER\r\n")
 	s.Flush()
 }
 
@@ -672,6 +753,10 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 			s.Print("\x1b[1;31m  " + err.Error() + ".\x1b[0m\r\n")
 			continue
 		}
+		if _, banned := b.guard.BlockedHandle(handle); banned {
+			s.Print("\x1b[1;31m  That handle isn't available here. Try another.\x1b[0m\r\n")
+			continue
+		}
 		u, err := b.st.UserByHandle(handle)
 		if err != nil {
 			s.Print("\x1b[1;31m  database error, try later.\x1b[0m\r\n")
@@ -739,8 +824,9 @@ func (b *board) newUser(s *term.Session, tok map[string]string) *store.User {
 }
 
 // mainMenu is the top-level lightbar. Loops until Goodbye / carrier loss.
-func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.User) {
+func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.User, node int) {
 	first := true
+	b.pres.setActivity(node, "main menu")
 	for {
 		var opts []render.Marker
 		if first {
@@ -764,31 +850,40 @@ func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.Use
 			}
 			s.Notice("That area is closed by the sysop.")
 		}
+		// doing runs fn with the node's who's-online activity set (the
+		// "Doing" column other callers see), restoring "main menu" after.
+		doing := func(what string, fn func()) {
+			b.pres.setActivity(node, what)
+			fn()
+			b.pres.setActivity(node, "main menu")
+		}
 		switch lc(key) {
 		case 'm':
-			b.messageMenu(s, tok, user)
+			doing("in the message bases", func() { b.messageMenu(s, tok, user) })
 		case 'f':
-			b.fileMenu(s, tok, user)
+			doing("in the file areas", func() { b.fileMenu(s, tok, user) })
 		case 'e':
-			gated("email", func() { b.email(s, tok, user) })
+			gated("email", func() { doing("reading mail", func() { b.email(s, tok, user) }) })
 		case 'o':
-			gated("oneliners", func() { b.oneliners(s, user) })
+			gated("oneliners", func() { doing("at the wall", func() { b.oneliners(s, user) }) })
 		case 'w':
 			b.whosOnline(s)
 		case 'c':
-			gated("teleconference", func() { b.teleconference(s, user) })
+			gated("teleconference", func() { doing("in teleconference", func() { b.teleconference(s, user) }) })
+		case 'p':
+			gated("paging", func() { doing("paging the sysop", func() { b.pageSysop(s, user) }) })
 		case 'd':
-			gated("doors", func() { b.doors(s, tok, user) })
+			gated("doors", func() { doing("in the doors", func() { b.doors(s, tok, user) }) })
 		case 'q':
-			gated("qwk", func() { b.qwk(s, tok, user) })
+			gated("qwk", func() { doing("packing qwk mail", func() { b.qwk(s, tok, user) }) })
 		case 'n':
 			gated("newfiles", func() { b.newFiles(s, user) })
 		case 't':
-			gated("gfiles", func() { b.gFiles(s, tok, user) })
+			gated("gfiles", func() { doing("reading g-files", func() { b.gFiles(s, tok, user) }) })
 		case 'b':
 			gated("bbslist", func() { b.bbsList(s, tok, user) })
 		case 'v':
-			gated("voting", func() { b.votingBooth(s, tok, user) })
+			gated("voting", func() { doing("in the voting booth", func() { b.votingBooth(s, tok, user) }) })
 		case 'u':
 			b.userList(s)
 		case 'l':
@@ -873,9 +968,11 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 			return nil
 		}
 
+		unread, _ := b.st.UnreadCounts(user.ID)
+
 		s.Print("\x1b[0m\x1b[2J\x1b[H")
 		s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m change message base\x1b[0m\r\n\r\n", boardName)
-		s.Print("\x1b[1;30m   #  \x1b[0;37mArea Title                    \x1b[1;30mMsgs  Last Post\x1b[0m\r\n")
+		s.Print("\x1b[1;30m   #  \x1b[0;37mArea Title                    \x1b[1;30mMsgs   New  Last Post\x1b[0m\r\n")
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 
 		for i := range boards {
@@ -883,16 +980,22 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 			n := i + 1
 			count := len(mustMessages(b, bd.ID))
 			if !acs.Eval(bd.ReadACS, subj) {
-				s.Printf("\x1b[1;30m  %2d  %-28s \x1b[31m[%s]\x1b[1;30m %4d  --\x1b[0m\r\n",
+				s.Printf("\x1b[1;30m  %2d  %-28s \x1b[31m[%s]\x1b[1;30m %4d     -  --\x1b[0m\r\n",
 					n, truncStr(bd.Name, 28), bd.ReadACS, count)
 				continue
+			}
+			// The qscan hook: how many messages are above this caller's read
+			// pointer, bright when there's something waiting.
+			nw := "\x1b[1;30m    -"
+			if u := unread[bd.ID]; u > 0 {
+				nw = fmt.Sprintf("\x1b[1;36m%5d", u)
 			}
 			last := "\x1b[1;30m--"
 			if recent := mustMessages(b, bd.ID); len(recent) > 0 {
 				last = "\x1b[1;36m" + recent[0].From + " \x1b[0;37m" + relTime(recent[0].Posted)
 			}
-			s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-28s \x1b[0;37m%4d  %s\x1b[0m\r\n",
-				n, truncStr(bd.Name, 28), count, last)
+			s.Printf("  \x1b[1;33m%2d  \x1b[1;37m%-28s \x1b[0;37m%4d %s\x1b[0;37m  %s\x1b[0m\r\n",
+				n, truncStr(bd.Name, 28), count, nw, last)
 		}
 
 		s.Print("\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m (\x1b[1;37mQ\x1b[0;37m to quit) \x1b[1;36m> \x1b[1;37m")
@@ -914,36 +1017,84 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 	}
 }
 
-// newScan lists the most recent messages across every base the caller can read
-// (the Iniquity [N]ew scan).
+// newScan is the qscan new-message scan: it walks every base the caller can
+// read, resumes at their read pointer, and steps through what arrived since --
+// oldest first, so an argument reads in order. Every message shown advances
+// the pointer, so tomorrow's scan starts where tonight's ended. [S] skips a
+// base (leaving it new for next time), [Q]/Esc leaves the whole scan.
 func (b *board) newScan(s *term.Session, user *store.User) {
 	subj := subjectOf(user)
 	boards, _ := b.st.Boards()
-	readable := map[int64]string{}
-	for i := range boards {
-		if acs.Eval(boards[i].ReadACS, subj) {
-			readable[boards[i].ID] = boards[i].Name
+
+	sawAny := false
+	for bi := range boards {
+		bd := &boards[bi]
+		if !acs.Eval(bd.ReadACS, subj) {
+			continue
+		}
+		ptr, err := b.st.LastRead(user.ID, bd.ID)
+		if err != nil {
+			continue
+		}
+		msgs, err := b.st.MessagesAfter(bd.ID, ptr)
+		if err != nil || len(msgs) == 0 {
+			continue
+		}
+		sawAny = true
+		canPost := acs.Eval(bd.PostACS, subj)
+
+		// A beat between bases: which base, how much is waiting.
+		s.Print("\x1b[0m\x1b[2J\x1b[H")
+		s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m new scan \x1b[1;30m\xfa\x1b[1;37m %s\x1b[0m\r\n", boardName, bd.Name)
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
+		s.Printf("  \x1b[1;36m%d\x1b[0;37m new %s here. \x1b[1;30mAny key reads \xfa [\x1b[1;37mS\x1b[1;30m]kip base \xfa [\x1b[1;37mQ\x1b[1;30m]uit scan\x1b[0m ",
+			len(msgs), plural(len(msgs), "message", "messages"))
+		s.Flush()
+		k, ch := s.ReadKey()
+		if k == term.KeyEsc || k == term.KeyEOF || (k == term.KeyChar && lc(ch) == 'q') {
+			return
+		}
+		if k == term.KeyChar && lc(ch) == 's' {
+			continue
+		}
+
+		i := 0
+	scanBase:
+		for {
+			b.showMessage(s, bd, msgs, i, canPost)
+			_ = b.st.SetLastRead(user.ID, bd.ID, msgs[i].ID)
+			k, ch := s.ReadKey()
+			switch {
+			case k == term.KeyEsc, k == term.KeyEOF, k == term.KeyChar && lc(ch) == 'q':
+				return
+			case k == term.KeyRight, k == term.KeyDown, k == term.KeyEnter,
+				k == term.KeyChar && (lc(ch) == 'n' || ch == ' '):
+				if i < len(msgs)-1 {
+					i++
+				} else {
+					break scanBase // past the last new message: next base
+				}
+			case k == term.KeyLeft, k == term.KeyUp, k == term.KeyChar && lc(ch) == 'p':
+				if i > 0 {
+					i--
+				}
+			case k == term.KeyChar && lc(ch) == 't':
+				if j := threadParent(msgs, msgs[i]); j >= 0 {
+					i = j
+				} else if msgs[i].ReplyTo != 0 {
+					s.Notice("The original isn't among the new messages.")
+				}
+			case canPost && k == term.KeyChar && lc(ch) == 'r':
+				b.postReply(s, bd, user, msgs[i])
+			}
 		}
 	}
 
-	msgs, _ := b.st.RecentMessages(40)
-	s.Print("\x1b[0m\x1b[2J\x1b[H")
-	s.Printf("\x1b[1;36m  %s \x1b[1;30m\xfa\x1b[0;37m new messages\x1b[0m\r\n", boardName)
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n\r\n")
-	shown := 0
-	for _, m := range msgs {
-		base, ok := readable[m.BoardID]
-		if !ok {
-			continue
-		}
-		s.Printf("  \x1b[1;33m%-14s \x1b[1;37m%-28s \x1b[1;36m%-12s \x1b[0;37m%s\x1b[0m\r\n",
-			truncStr(base, 14), truncStr(m.Subject, 28), truncStr(m.From, 12), relTime(m.Posted))
-		shown++
+	if !sawAny {
+		s.Notice("Nothing new across your bases -- you're all caught up.")
+		return
 	}
-	if shown == 0 {
-		s.Print("\x1b[0;37m  Nothing new across your bases.\x1b[0m\r\n")
-	}
-	s.Pause()
+	s.Notice("New scan complete.")
 }
 
 // mustMessages returns a board's messages newest-first (nil on error), a small
@@ -1009,9 +1160,25 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 
 	// Read one message at a time, Iniquity-style: a framed header (group, sender,
 	// subject, date) over the body, with prev/next/reply/quit navigation.
+	//
+	// Resume where the caller left off: if they've read this base before and
+	// messages arrived since, open on the oldest unread instead of the newest.
+	// msgs is newest-first, so the oldest unread is the highest index above
+	// the read pointer.
 	i := 0
+	if ptr, err := b.st.LastRead(user.ID, bd.ID); err == nil && ptr > 0 {
+		for j := len(msgs) - 1; j >= 0; j-- {
+			if msgs[j].ID > ptr {
+				i = j
+				break
+			}
+		}
+	}
 	for {
 		b.showMessage(s, bd, msgs, i, canPost)
+		// Seeing a message advances the qscan pointer (monotonically, so
+		// paging back through old mail never resurrects it as "new").
+		_ = b.st.SetLastRead(user.ID, bd.ID, msgs[i].ID)
 		k, ch := s.ReadKey()
 		switch {
 		case k == term.KeyEsc, k == term.KeyEOF, k == term.KeyChar && lc(ch) == 'q':
@@ -1025,6 +1192,13 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 			if i > 0 {
 				i--
 			}
+		case k == term.KeyChar && lc(ch) == 't':
+			// Walk up the thread to the message this one replies to.
+			if j := threadParent(msgs, msgs[i]); j >= 0 {
+				i = j
+			} else if msgs[i].ReplyTo != 0 {
+				s.Notice("The original has scrolled out of this window.")
+			}
 		case canPost && k == term.KeyChar && lc(ch) == 'r':
 			b.postReply(s, bd, user, msgs[i])
 		}
@@ -1033,14 +1207,16 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 
 // postMessage composes a fresh public message addressed to All.
 func (b *board) postMessage(s *term.Session, bd *store.Board, user *store.User) {
-	b.compose(s, bd, user, "All", "")
+	b.compose(s, bd, user, "All", "", nil)
 }
 
 // compose runs the subject prompt + full-screen body editor and posts the
 // result. toDefault is the recipient (All for public posts, the original sender
 // for a reply); subjDefault pre-fills the subject (blank for a new message,
-// "Re: ..." for a reply) and is kept if the caller just presses enter.
-func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDefault, subjDefault string) {
+// "Re: ..." for a reply) and is kept if the caller just presses enter. A
+// non-nil parent makes this a threaded reply: the editor opens with the
+// original >-quoted and the post carries the parent's id.
+func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDefault, subjDefault string, parent *store.Message) {
 	if subjDefault != "" {
 		s.Printf("\r\n\x1b[0;37m  Subject \x1b[1;30m[%s]\x1b[0;37m: \x1b[1;37m", subjDefault)
 	} else {
@@ -1063,7 +1239,17 @@ func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDe
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	s.Flush()
 
-	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, nil)
+	// A reply opens on the original, >-quoted, cursor underneath.
+	var prefill []string
+	var replyTo int64
+	if parent != nil {
+		prefill = quoteLines(parent.From, parent.Body, 72)
+		replyTo = parent.ID
+	}
+	ed := editor.New(editorConsole{s}, 5, 3, 72, 16, prefill)
+	if len(prefill) > 0 {
+		ed.CursorEnd() // open under the quote, not on top of it
+	}
 	lines, saved := ed.Run()
 	// Restore a clean cursor/attr state after the editor.
 	s.Print("\x1b[0m\x1b[24;1H\r\n")
@@ -1086,6 +1272,7 @@ func (b *board) compose(s *term.Session, bd *store.Board, user *store.User, toDe
 		Subject: subj,
 		Body:    body,
 		Posted:  time.Now(),
+		ReplyTo: replyTo,
 	}); err != nil {
 		s.Notice("Could not post your message.")
 		return
@@ -1301,15 +1488,38 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 		return
 	}
 	b.screenHeader(s, "the wall \xfa oneliners")
+
+	// The automessage: one claimable board-wide shout, sitting above the
+	// wall. Whoever claims it last owns it until the next caller does.
+	if author, amsg, at := b.st.Automessage(); amsg != "" {
+		s.Printf("  \x1b[1;33m\xfe automessage \x1b[1;30m\xfa \x1b[1;35m%s \x1b[1;30m\xfa %s\x1b[0m\r\n",
+			author, relTime(at))
+		s.Printf("    \x1b[1;37m%s\x1b[0m\r\n", amsg)
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
+	}
+
 	if len(liners) == 0 {
 		s.Print("\x1b[0;37m  The wall is blank. Tag it.\x1b[0m\r\n")
 	}
 	for _, o := range liners {
 		s.Printf("  \x1b[1;35m%-12s \x1b[1;30m\xb3 \x1b[0;37m%s\x1b[0m\r\n", truncStr(o.Author, 12), o.Text)
 	}
-	s.Print("\r\n\x1b[0;37m  Leave your mark \x1b[1;30m(enter to skip)\x1b[0;37m: \x1b[1;37m")
+	s.Print("\r\n\x1b[0;37m  Leave your mark \x1b[1;30m(enter skips \xfa start with \x1b[1;37m!\x1b[1;30m to claim the automessage)\x1b[0;37m: \x1b[1;37m")
 	s.Flush()
 	text := s.ReadLine(80)
+	if claim, ok := strings.CutPrefix(strings.TrimSpace(text), "!"); ok {
+		claim = strings.TrimSpace(claim)
+		if claim == "" {
+			return
+		}
+		if err := b.st.SetAutomessage(user.Handle, claim); err != nil {
+			s.Notice("Could not claim the automessage.")
+			return
+		}
+		s.Print("\x1b[1;32m  The automessage is yours.\x1b[0m\r\n")
+		s.Pause()
+		return
+	}
 	if strings.TrimSpace(text) != "" {
 		if err := b.st.AddOneliner(&store.Oneliner{Author: user.Handle, Text: text, Posted: time.Now()}); err != nil {
 			s.Notice("Could not post your line.")
@@ -1321,12 +1531,17 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 }
 
 func (b *board) whosOnline(s *term.Session) {
-	online := b.pres.list()
+	online := b.pres.snapshot()
 	b.screenHeader(s, "who's online")
-	s.Print("\x1b[1;35m   #  \x1b[0;36mCaller\x1b[0m\r\n")
+	s.Print("\x1b[1;35m  Node  \x1b[0;36mCaller                        \x1b[1;30mDoing\x1b[0m\r\n")
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-	for i, w := range online {
-		s.Printf("  \x1b[1;33m%2d  \x1b[1;36m\xfe \x1b[0;37m%s\x1b[0m\r\n", i+1, w)
+	for _, w := range online {
+		act := w.Activity
+		if act == "" {
+			act = "connecting"
+		}
+		s.Printf("  \x1b[1;33m%4d  \x1b[1;36m\xfe \x1b[0;37m%-28s \x1b[1;30m%s\x1b[0m\r\n",
+			w.Node, truncStr(w.Who, 28), truncStr(act, 32))
 	}
 	if len(online) == 0 {
 		s.Print("\x1b[0;37m  Nobody on the wire right now.\x1b[0m\r\n")
