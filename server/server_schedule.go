@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"vendetta-x/server/internal/ftn"
 	"vendetta-x/server/internal/qwknet"
 )
 
@@ -52,6 +53,14 @@ var scheduledActions = map[string]func(b *board) error{
 			return err
 		}
 		log.Printf("schedule: database backed up to %s (keeping %d)", path, keep)
+		return nil
+	},
+	"ftn.exchange": func(b *board) error {
+		sum, err := ftn.Exchange(b.st, b.ftn)
+		if err != nil {
+			return err
+		}
+		log.Printf("schedule: ftn exchange: %s", sum)
 		return nil
 	},
 }

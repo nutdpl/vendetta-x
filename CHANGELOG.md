@@ -8,6 +8,18 @@ semantic versioning.
 
 ### Added
 
+- **FTN message networking: the board joins the big networks.** A from-
+  scratch FidoNet-technology stack -- FTS-0001 type 2+ packets with full
+  echomail dressing (`internal/ftn`) over a BinkP 1.0 mailer with CRAM-MD5
+  (`internal/binkp`) -- covering fsxNet, FidoNet, AgoraNet, ArakNet and every
+  other FTN network with one implementation (DOVE-Net was already covered by
+  QWK-net). The new sysop / networks page joins any number of uplinks at
+  once, each with its own address, password, and echo-to-board map; the
+  `ftn.exchange` scheduler action polls them unattended. Locally-posted
+  messages flow out with proper MSGID/tearline/origin; inbound echomail is
+  MSGID-deduped (our own posts can never echo back in), origin-tagged (so it
+  can never be re-exported), and REPLY-kludge threaded onto local messages.
+
 - **Nightly backups, out of the box.** A fresh board ships with a scheduled
   `db.backup` event (04:00): each run writes a consistent `VACUUM INTO`
   snapshot of the whole board into the backup directory (sysop-configurable,

@@ -1,0 +1,49 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "ftn")}}
+
+{{if .RunResult}}<p class="form-error" style="border-color:var(--green);color:var(--green)">Exchange ran: {{.RunResult}}</p>{{end}}
+{{if .Err}}<p class="form-error">{{.Err}}</p>{{end}}
+
+<section class="panel">
+  <h2 class="ph">message networks <span class="chip">{{len .Links}}</span></h2>
+  <p class="sg-note">FidoNet-technology echomail over BinkP: fsxNet, FidoNet, AgoraNet, ArakNet and friends -- join as many as you like, each with its own uplink. Apply for a node number in the network's application echo (fsxNet's is in <code>FSX_GEN</code> via the info pack at bbs.nz), then enter the address and session password they assign. Locally-posted messages in mapped boards flow out; the network's traffic flows in, deduped by MSGID and threaded. Schedule an "FTN mail exchange" <a href="/sysop/events">event</a> every 30-60 minutes.</p>
+
+  {{if .Links}}
+    <table class="table">
+      <thead>
+        <tr><th>network</th><th>our address</th><th>hub</th><th>echoes</th><th>status</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Links}}
+          <tr>
+            <td><b>{{.Link.Name}}</b></td>
+            <td><code>{{.Link.OurAddr}}</code></td>
+            <td><code>{{.Link.HubAddr}}</code> at {{.Link.Host}}</td>
+            <td>{{.Echoes}}</td>
+            <td>{{if .Link.Enabled}}{{template "c-badge" (dict "label" "on" "variant" "green")}}{{else}}{{template "c-badge" (dict "label" "off" "variant" "dim")}}{{end}}</td>
+            <td class="rowacts">
+              <a class="btn btn-sm" href="/sysop/ftn/{{.Link.ID}}">edit</a>
+              <form method="post" action="/sysop/ftn/{{.Link.ID}}/delete" onsubmit="return confirm('Leave this network?')">
+                <button class="btn btn-sm btn-danger" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">Not on any networks yet. Join one below -- fsxNet is the friendliest place to start.</p>
+  {{end}}
+  <div class="authactions">
+    <a class="btn btn-primary" href="/sysop/ftn/0">join a network</a>
+  </div>
+</section>
+
+<section class="panel">
+  <h2 class="ph">exchange</h2>
+  <p class="sg-note">last exchange: {{if .LastStatus}}{{.LastStatus}}{{else}}never{{end}}</p>
+  <form method="post" action="/sysop/ftn/run">
+    <button class="btn" type="submit">exchange now</button>
+  </form>
+</section>
+{{end}}

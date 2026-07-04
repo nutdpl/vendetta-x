@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -72,16 +71,21 @@ func runPTY(cmd *exec.Cmd, rw io.ReadWriteCloser) error {
 	// master on teardown unblocks this copy.
 	go func() { io.Copy(master, rw) }()
 
-	// door -> caller. Ends when the door exits and the master reports EOF.
-	var wg sync.WaitGroup
-	wg.Add(1)
+	// door -> caller. When the door exits (all slave fds gone) the master
+	// read drains the pty buffer and then errors (EIO on Linux), ending the
+	// copy with every byte delivered.
+	copyDone := make(chan struct{})
 	go func() {
-		defer wg.Done()
+		defer close(copyDone)
 		io.Copy(rw, master)
 	}()
 
+	// Drain the output BEFORE closing the master: closing first can discard
+	// the door's final burst still queued in the pty buffer (the same
+	// lost-last-screen race the pipe bridge had). If the caller hangs up
+	// instead, the copy ends on its write error -- either way this returns.
+	<-copyDone
 	werr := cmd.Wait()
-	master.Close() // unblock both copiers
-	wg.Wait()
+	master.Close() // unblock the input copier
 	return werr
 }

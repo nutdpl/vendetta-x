@@ -54,6 +54,11 @@ var Catalog = []ActionDef{
 		Label: "Database backup",
 		Desc:  "Writes a consistent snapshot of the whole board (one SQLite file) into the backup directory and prunes old snapshots. The board ships with this scheduled nightly.",
 	},
+	{
+		Key:   "ftn.exchange",
+		Label: "FTN mail exchange",
+		Desc:  "Polls every enabled FTN uplink (fsxNet, FidoNet, ...): sends locally-posted echomail, imports the hub's. Configure uplinks under sysop / networks first. Every 30-60 minutes is neighborly.",
+	},
 }
 
 // Event is one scheduled action, in one of two modes: run Action once a day
