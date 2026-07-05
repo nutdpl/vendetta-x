@@ -204,6 +204,15 @@ legacy/tools/ansi2png.py ──▶  shots/*.png            (pixel-exact review)
 - Lightbar options live in the art as `|{row,col,hotkey,Label}` markers; the
   Go code only supplies handlers per hotkey. Adding a menu entry = regenerate
   the `.pp` with a new marker + handle the key in `main.go`.
+  **Exception: the main menu.** `art/mainmenu.pp` only reserves the slot
+  layout (`mkmainmenu.py`'s `LEFT_SLOTS`/`RIGHT_SLOTS`) behind a single
+  `@@MENU_OPTIONS@@` placeholder; which action/label/hotkey fills each slot
+  is sysop-editable data (`internal/menu`, `/sysop/menu`), spliced in by
+  `server_menu.go` on every render — no regeneration needed to rename a
+  command or rebind its key. Regeneration is only needed if the *slot
+  count* itself changes (a new command needing a 20th slot, say), which
+  also means updating `mainMenuSlotPos`/`mainMenuDefaults` in
+  `server_menu.go` and `menu.MainMenuSlots` in lockstep.
 - Verify visually every time: render through the board (or the `.ans`
   directly) into `ansi2png.py` and *look at the PNG*. For live-token screens,
   capture a real telnet session and render the capture.

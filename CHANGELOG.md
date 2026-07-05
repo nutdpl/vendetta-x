@@ -8,6 +8,16 @@ semantic versioning.
 
 ### Added
 
+- **Sysop-configurable main menu.** Which command lives in each of the 19
+  telnet/ssh main-menu slots, its label, and the key that picks it are no
+  longer baked into the art -- they're editable at `/sysop/menu`, take
+  effect on a caller's next redraw, and survive across restarts. A slot can
+  be rebound to a different command, relabeled, given a new hotkey, or
+  hidden entirely; feature-gated commands (email, doors, voting, ...) still
+  honor their own on/off switch under settings no matter which slot they
+  land in. `art/mainmenu.pp` now reserves the slot layout (10 left, 9
+  right) behind a placeholder the board splices its live bindings into on
+  every render, instead of hardcoding 19 fixed labels/hotkeys.
 - **FTN message networking: the board joins the big networks.** A from-
   scratch FidoNet-technology stack -- FTS-0001 type 2+ packets with full
   echomail dressing (`internal/ftn`) over a BinkP 1.0 mailer with CRAM-MD5

@@ -1,0 +1,39 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "menu")}}
+
+{{if .Err}}<p class="form-error">{{.Err}}</p>{{end}}
+
+<section class="panel">
+  <h2 class="ph">main menu</h2>
+  <p class="sg-note">What lives in each slot of the telnet/ssh main menu, its label, and the key that picks it. "-- empty --" leaves a slot blank. Hotkeys must be a single character and unique among the slots you enable; <code>|</code> and <code>}</code> aren't allowed in labels or hotkeys (they're reserved by the art renderer). Feature-gated commands (email, doors, voting, ...) still honor their on/off switch under <a href="/sysop/settings">settings</a> no matter which slot they're bound to -- unbinding a slot here just hides it from the menu, it doesn't disable the feature.</p>
+  <form method="post" action="/sysop/menu" class="authform" autocomplete="off">
+    <table class="table">
+      <thead>
+        <tr><th>slot</th><th>action</th><th>label</th><th>hotkey</th><th>on</th></tr>
+      </thead>
+      <tbody>
+        {{range .Rows}}
+          {{$cur := .Action}}
+          <tr>
+            <td>{{.Display}}</td>
+            <td>
+              <select name="action_{{.Slot}}">
+                <option value="">-- empty --</option>
+                {{range $.Catalog}}
+                  <option value="{{.Key}}" {{if eq .Key $cur}}selected{{end}}>{{.Label}}</option>
+                {{end}}
+              </select>
+            </td>
+            <td><input type="text" name="label_{{.Slot}}" maxlength="34" value="{{.Label}}"></td>
+            <td><input type="text" name="hotkey_{{.Slot}}" maxlength="1" size="2" value="{{.Hotkey}}"></td>
+            <td class="field-check"><input type="checkbox" name="enabled_{{.Slot}}" value="1" {{if .Enabled}}checked{{end}}></td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <div class="authactions">
+      <button class="btn btn-primary" type="submit">save menu</button>
+    </div>
+  </form>
+</section>
+{{end}}

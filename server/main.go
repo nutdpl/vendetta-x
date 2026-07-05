@@ -46,6 +46,7 @@ import (
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
+	"vendetta-x/server/internal/menu"
 	"vendetta-x/server/internal/render"
 	"vendetta-x/server/internal/schedule"
 	"vendetta-x/server/internal/social"
@@ -137,6 +138,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("ftn: %v", err)
 	}
+	menuStore, err := menu.New(st.DB())
+	if err != nil {
+		log.Fatalf("menu: %v", err)
+	}
 
 	// A fresh board ships with the nightly backup already scheduled -- the
 	// one maintenance job a sysop must never have to remember to set up.
@@ -146,6 +151,11 @@ func main() {
 		}); err != nil {
 			log.Printf("seed nightly backup: %v", err)
 		}
+	}
+	// Likewise the main menu: a fresh board's slots match exactly what used
+	// to be static art, so upgrading is invisible until a sysop edits it.
+	if err := menuStore.EnsureSeeded("main", mainMenuDefaults); err != nil {
+		log.Printf("seed main menu: %v", err)
 	}
 
 	pres := newPresence()
@@ -159,6 +169,7 @@ func main() {
 		events:        scheduleStore,
 		guard:         guardStore,
 		ftn:           ftnStore,
+		menu:          menuStore,
 		idle:          *idleTimeout,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}
@@ -367,6 +378,7 @@ type board struct {
 	events    *schedule.Store
 	guard     *guard.Store
 	ftn       *ftn.Store
+	menu      *menu.Store
 
 	// sem bounds concurrent telnet+ssh sessions (nil = unlimited); idle is the
 	// per-session input-inactivity timeout (0 = never).
@@ -835,77 +847,43 @@ func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.Use
 	first := true
 	b.pres.setActivity(node, "main menu")
 	for {
+		// The menu is sysop-configurable (slot -> action/label/hotkey lives
+		// in b.menu): compose the current bindings into mainmenu.pp's
+		// @@MENU_OPTIONS@@ placeholder fresh on every render, so an edit in
+		// the sysop panel takes effect on a caller's very next redraw.
+		items, _ := b.menu.Items("main")
+		composed, keyToAction := b.mainMenuTemplate(items)
+
 		var opts []render.Marker
 		if first {
 			// Paint the menu in line by line the first time the caller lands on
 			// it; redraws after backing out of a sub-area are instant.
-			opts, _ = s.Reveal(b.art+"/mainmenu.pp", tok, 16*time.Millisecond)
+			opts, _ = s.RevealBytes(composed, tok, 16*time.Millisecond)
 			first = false
 		} else {
-			opts = s.RenderScreen(b.art+"/mainmenu.pp", tok)
+			opts = s.RenderScreenBytes(composed, tok)
 		}
 		key, ok := s.Lightbar(opts, 0)
 		if !ok {
 			return
 		}
-		// gated runs a toggleable feature, or shows a closed notice when the
-		// sysop has switched it off in the configuration program.
-		gated := func(key string, fn func()) {
-			if b.st.FeatureEnabled(key) {
-				fn()
-				return
-			}
+		action, ok := keyToAction[key]
+		if !ok {
+			continue // shouldn't happen: Lightbar only returns keys we handed it
+		}
+		handler := mainMenuDispatch[action]
+		if handler.Run == nil {
+			return // the "goodbye" sentinel (or a stale/unbound action)
+		}
+		if handler.Feature != "" && !b.st.FeatureEnabled(handler.Feature) {
 			s.Notice("That area is closed by the sysop.")
+			continue
 		}
-		// doing runs fn with the node's who's-online activity set (the
-		// "Doing" column other callers see), restoring "main menu" after.
-		doing := func(what string, fn func()) {
-			b.pres.setActivity(node, what)
-			fn()
-			b.pres.setActivity(node, "main menu")
+		if handler.Doing != "" {
+			b.pres.setActivity(node, handler.Doing)
 		}
-		switch lc(key) {
-		case 'm':
-			doing("in the message bases", func() { b.messageMenu(s, tok, user) })
-		case 'f':
-			doing("in the file areas", func() { b.fileMenu(s, tok, user) })
-		case 'e':
-			gated("email", func() { doing("reading mail", func() { b.email(s, tok, user) }) })
-		case 'o':
-			gated("oneliners", func() { doing("at the wall", func() { b.oneliners(s, user) }) })
-		case 'w':
-			b.whosOnline(s)
-		case 'c':
-			gated("teleconference", func() { doing("in teleconference", func() { b.teleconference(s, user) }) })
-		case 'p':
-			gated("paging", func() { doing("paging the sysop", func() { b.pageSysop(s, user) }) })
-		case 'd':
-			gated("doors", func() { doing("in the doors", func() { b.doors(s, tok, user) }) })
-		case 'q':
-			gated("qwk", func() { doing("packing qwk mail", func() { b.qwk(s, tok, user) }) })
-		case 'n':
-			gated("newfiles", func() { b.newFiles(s, user) })
-		case 't':
-			gated("gfiles", func() { doing("reading g-files", func() { b.gFiles(s, tok, user) }) })
-		case 'b':
-			gated("bbslist", func() { b.bbsList(s, tok, user) })
-		case 'v':
-			gated("voting", func() { doing("in the voting booth", func() { b.votingBooth(s, tok, user) }) })
-		case 'u':
-			b.userList(s)
-		case 'l':
-			b.lastCallers(s)
-		case 'z':
-			b.profile(s, user)
-		case 'i':
-			b.sysInfo(s, tok, user)
-		case 'x':
-			b.settings(s, tok, user)
-		case 'g':
-			return
-		default:
-			s.Notice("That feature isn't wired up yet -- coming soon.")
-		}
+		handler.Run(b, s, tok, user)
+		b.pres.setActivity(node, "main menu")
 	}
 }
 

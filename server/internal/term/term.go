@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -312,9 +313,21 @@ func (s *Session) SetReadDeadline(t time.Time) error {
 // RenderScreen renders a .pp/.ans file to the session, returning any |{...}
 // lightbar markers found (in art order).
 func (s *Session) RenderScreen(path string, tokens map[string]string) []render.Marker {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	return s.RenderScreenBytes(b, tokens)
+}
+
+// RenderScreenBytes is RenderScreen over already-loaded template bytes,
+// rather than a path -- for a screen a caller composes at runtime (e.g. the
+// sysop-configurable main menu splicing its current bindings into a
+// placeholder before rendering) instead of loading verbatim from disk.
+func (s *Session) RenderScreenBytes(source []byte, tokens map[string]string) []render.Marker {
 	var markers []render.Marker
 	ctx := &render.Ctx{Tokens: tokens, OnMarker: func(m render.Marker) { markers = append(markers, m) }}
-	render.RenderFile(s.bw, path, ctx)
+	render.Render(s.bw, source, ctx)
 	s.Flush()
 	return markers
 }

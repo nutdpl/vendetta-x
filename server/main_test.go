@@ -13,6 +13,7 @@ import (
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
+	"vendetta-x/server/internal/menu"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
 	"vendetta-x/server/internal/throttle"
@@ -59,6 +60,13 @@ func newTestBoard(t *testing.T) *board {
 	if err != nil {
 		t.Fatalf("guard: %v", err)
 	}
+	menuStore, err := menu.New(st.DB())
+	if err != nil {
+		t.Fatalf("menu.New: %v", err)
+	}
+	if err := menuStore.EnsureSeeded("main", mainMenuDefaults); err != nil {
+		t.Fatalf("menu seed: %v", err)
+	}
 	return &board{
 		st:            st,
 		pres:          newPresence(),
@@ -70,6 +78,7 @@ func newTestBoard(t *testing.T) *board {
 		gfiles:        gfileStore,
 		doorStore:     doorStore,
 		guard:         guardStore,
+		menu:          menuStore,
 		idle:          0,
 		loginThrottle: throttle.New(8, 10*time.Minute),
 	}

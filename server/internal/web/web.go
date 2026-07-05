@@ -41,6 +41,7 @@ import (
 	"vendetta-x/server/internal/gfiles"
 	"vendetta-x/server/internal/guard"
 	"vendetta-x/server/internal/mail"
+	"vendetta-x/server/internal/menu"
 	"vendetta-x/server/internal/schedule"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/throttle"
@@ -105,6 +106,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.events, _ = schedule.New(st.DB())
 	s.guard, _ = guard.New(st.DB())
 	s.ftn, _ = ftn.NewStore(st.DB())
+	s.menu, _ = menu.New(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -240,6 +242,10 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /sysop/doors", s.admin(s.sysopDoorSave))
 	mux.HandleFunc("POST /sysop/doors/{id}/delete", s.admin(s.sysopDoorDelete))
 
+	// main menu (sysop-configurable slots + hotkeys)
+	mux.HandleFunc("GET /sysop/menu", s.admin(s.sysopMenu))
+	mux.HandleFunc("POST /sysop/menu", s.admin(s.sysopMenuSave))
+
 	// FTN message networks
 	mux.HandleFunc("GET /sysop/ftn", s.admin(s.sysopFTN))
 	mux.HandleFunc("GET /sysop/ftn/{id}", s.admin(s.sysopFTNEdit))
@@ -331,6 +337,7 @@ type server struct {
 	events    *schedule.Store
 	guard     *guard.Store
 	ftn       *ftn.Store
+	menu      *menu.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being
