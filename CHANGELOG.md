@@ -8,6 +8,16 @@ semantic versioning.
 
 ### Added
 
+- **Sysop-configurable main menu.** Which command lives in each of the 19
+  telnet/ssh main-menu slots, its label, and the key that picks it are no
+  longer baked into the art -- they're editable at `/sysop/menu`, take
+  effect on a caller's next redraw, and survive across restarts. A slot can
+  be rebound to a different command, relabeled, given a new hotkey, or
+  hidden entirely; feature-gated commands (email, doors, voting, ...) still
+  honor their own on/off switch under settings no matter which slot they
+  land in. `art/mainmenu.pp` now reserves the slot layout (10 left, 9
+  right) behind a placeholder the board splices its live bindings into on
+  every render, instead of hardcoding 19 fixed labels/hotkeys.
 - **FTN message networking: the board joins the big networks.** A from-
   scratch FidoNet-technology stack -- FTS-0001 type 2+ packets with full
   echomail dressing (`internal/ftn`) over a BinkP 1.0 mailer with CRAM-MD5
@@ -98,6 +108,25 @@ semantic versioning.
 
 ### Fixed
 
+- **Every art screen double-spaced and smeared on real scene terminals**
+  (SyncTERM, TheDraw, anything ANSI.SYS-shaped). Two stacked causes, both
+  found from one SyncTERM photo. The big one: the generated art painted all
+  **80 columns and then sent a newline** -- ANSI.SYS-family renderers wrap
+  the cursor the instant column 80 is written, so that newline opened a
+  blank row under every full-width line, stretching the wordmarks to double
+  height, shearing the screens ("spaces between each line"), and smearing
+  absolute-positioned menu labels into the shifted art. Modern terminals
+  defer the wrap until the next glyph, which is why xterm-family screens
+  and the PNG previews always looked fine. All generated art now stops at
+  **79 columns** (the classic ANSI-scene safe width, capped centrally in
+  the art pipeline's serializers), which renders identically on every
+  terminal -- verified by replaying captured sessions through both an
+  immediate-wrap ANSI.SYS-style emulator and a deferred-wrap vt emulator at
+  80x25. Second, the main menu was also simply too tall: its 19 reserved
+  slots under the full wordmark-plus-bars chrome needed ~30 rows, so slot
+  markers past row 25 clamped onto earlier rows. `art/mainmenu.pp` now
+  skips the top/bottom eroded bars (this screen alone has double the usual
+  option-row count) and fits in 25 rows like everything else.
 - The main menu's `C` slot was labeled **"Page Sysop" but opened the
   teleconference** -- and the teleconference itself was listed nowhere.
   `C` is now labeled Teleconference (what it always ran), and the new `P`

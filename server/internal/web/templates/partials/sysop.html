@@ -1,8 +1,8 @@
 {{/* sysop-nav -- the sub-navigation shared by the sysop panel pages.
      keys: active (string) one of
        "dash" | "users" | "config" | "areas" | "uploads" | "gfiles" |
-       "bulletins" | "bbslist" | "voting" | "doors" | "oneliners" | "events" |
-       "qwknet" | "settings" */}}
+       "bulletins" | "bbslist" | "voting" | "doors" | "oneliners" | "bans" |
+       "events" | "qwknet" | "ftn" | "menu" | "settings" */}}
 {{define "sysop-nav"}}
 <nav class="sysnav" aria-label="sysop">
   <a href="/sysop"           class="{{if eq .active "dash"}}on{{end}}">dashboard</a>
@@ -20,6 +20,7 @@
   <a href="/sysop/events"    class="{{if eq .active "events"}}on{{end}}">events</a>
   <a href="/sysop/qwknet"    class="{{if eq .active "qwknet"}}on{{end}}">qwk-net</a>
   <a href="/sysop/ftn"       class="{{if eq .active "ftn"}}on{{end}}">networks</a>
+  <a href="/sysop/menu"      class="{{if eq .active "menu"}}on{{end}}">menu</a>
   <a href="/sysop/settings"  class="{{if eq .active "settings"}}on{{end}}">settings</a>
 </nav>
 {{- end}}

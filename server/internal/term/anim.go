@@ -124,12 +124,24 @@ func (s *Session) WaitAnyKey(d time.Duration) {
 // returns the screen's lightbar markers (so it is a drop-in for RenderScreen)
 // and whether the caller skipped. lineDelay <= 0 is an instant draw.
 func (s *Session) Reveal(path string, tokens map[string]string, lineDelay time.Duration) ([]render.Marker, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		// Missing/broken art: fall back to an instant draw rather than crash.
+		return s.RenderScreen(path, tokens), false
+	}
+	return s.RevealBytes(b, tokens, lineDelay)
+}
+
+// RevealBytes is Reveal over already-loaded template bytes rather than a
+// path -- see RenderScreenBytes for why a caller would have bytes instead of
+// a file to begin with.
+func (s *Session) RevealBytes(source []byte, tokens map[string]string, lineDelay time.Duration) ([]render.Marker, bool) {
 	var markers []render.Marker
 	var buf bytes.Buffer
 	ctx := &render.Ctx{Tokens: tokens, OnMarker: func(m render.Marker) { markers = append(markers, m) }}
-	if err := render.RenderFile(&buf, path, ctx); err != nil {
-		// Missing/broken art: fall back to an instant draw rather than crash.
-		return s.RenderScreen(path, tokens), false
+	if err := render.Render(&buf, source, ctx); err != nil {
+		// Broken composed template: fall back to an instant draw rather than crash.
+		return s.RenderScreenBytes(source, tokens), false
 	}
 
 	data := buf.Bytes()
