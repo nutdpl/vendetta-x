@@ -107,7 +107,7 @@ func TestMainMenuOptionsSkipsDisabledAndBlank(t *testing.T) {
 	if keyToAction['M'] != "messages" {
 		t.Fatalf("enabled slot not reachable: %v", keyToAction)
 	}
-	if want := "|{18,8,M,Msgs}"; text != want {
+	if want := "|{15,8,M,Msgs}"; text != want {
 		t.Fatalf("options text = %q, want exactly %q (only the one live slot)", text, want)
 	}
 }

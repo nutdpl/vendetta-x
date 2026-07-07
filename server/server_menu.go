@@ -19,17 +19,24 @@ import (
 // into the art's @@MENU_OPTIONS@@ placeholder on every render.
 
 // mainMenuSlotPos is where each slot paints -- must match the reserved
-// layout in art/mainmenu.pp (base row 18, just under the divider; left
-// column at col 8, right at col 44). If that art is ever regenerated with a
-// different logo height or column count, this map and mkmainmenu.py's
+// layout in art/mainmenu.pp (base row 15, just under the divider; left
+// column at col 8, right at col 44). Rows only go up to 24: mkmainmenu.py
+// deliberately skips the top/bottom eroded bars every other build_chrome
+// screen gets, because with 10 reserved left-column rows the full-bars
+// version needs ~30 terminal rows -- past a standard 80x25 terminal (e.g.
+// SyncTERM's out-of-the-box default), which clamps/scrolls the
+// absolute-position slot markers into each other (menu items overlapping
+// garbled text). If that art is ever regenerated with a different logo
+// height or column count, this map and mkmainmenu.py's
 // LEFT_SLOTS/RIGHT_SLOTS/LCOL/RCOL need to move in lockstep -- a test
 // (TestMainMenuSlotsComplete) at least catches the two lists drifting apart
-// from each other, though not from the art itself.
+// from each other, though not from the art itself, and the last slot row
+// should stay well clear of row 25.
 var mainMenuSlotPos = map[string]struct{ Row, Col int }{
-	"L0": {18, 8}, "L1": {19, 8}, "L2": {20, 8}, "L3": {21, 8}, "L4": {22, 8},
-	"L5": {23, 8}, "L6": {24, 8}, "L7": {25, 8}, "L8": {26, 8}, "L9": {27, 8},
-	"R0": {18, 44}, "R1": {19, 44}, "R2": {20, 44}, "R3": {21, 44}, "R4": {22, 44},
-	"R5": {23, 44}, "R6": {24, 44}, "R7": {25, 44}, "R8": {26, 44},
+	"L0": {15, 8}, "L1": {16, 8}, "L2": {17, 8}, "L3": {18, 8}, "L4": {19, 8},
+	"L5": {20, 8}, "L6": {21, 8}, "L7": {22, 8}, "L8": {23, 8}, "L9": {24, 8},
+	"R0": {15, 44}, "R1": {16, 44}, "R2": {17, 44}, "R3": {18, 44}, "R4": {19, 44},
+	"R5": {20, 44}, "R6": {21, 44}, "R7": {22, 44}, "R8": {23, 44},
 }
 
 // mainMenuDefaults seeds a fresh board's main menu, matching exactly what

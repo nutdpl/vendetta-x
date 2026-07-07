@@ -108,6 +108,17 @@ semantic versioning.
 
 ### Fixed
 
+- **The main menu garbled itself on a standard 80x25 terminal** (SyncTERM's
+  out-of-the-box default, among others): the sysop-configurable menu's
+  reserved slot block, drawn under the full wordmark-plus-eroded-bars chrome
+  every other menu screen uses, needed ~30 terminal rows -- past what a
+  25-row terminal can show, so the absolute-positioned slot markers past row
+  25 landed on top of earlier rows instead of their own line, showing menu
+  items overlapping into unreadable fused text. `art/mainmenu.pp` now skips
+  the top/bottom eroded bars (every other screen keeps them; this one alone
+  has double their usual option-row count) so the whole screen fits in 25
+  rows like every other screen in the project, confirmed by replaying a
+  captured session through terminal emulation at several screen heights.
 - The main menu's `C` slot was labeled **"Page Sysop" but opened the
   teleconference** -- and the teleconference itself was listed nowhere.
   `C` is now labeled Teleconference (what it always ran), and the new `P`
