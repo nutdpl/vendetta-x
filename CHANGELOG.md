@@ -108,17 +108,25 @@ semantic versioning.
 
 ### Fixed
 
-- **The main menu garbled itself on a standard 80x25 terminal** (SyncTERM's
-  out-of-the-box default, among others): the sysop-configurable menu's
-  reserved slot block, drawn under the full wordmark-plus-eroded-bars chrome
-  every other menu screen uses, needed ~30 terminal rows -- past what a
-  25-row terminal can show, so the absolute-positioned slot markers past row
-  25 landed on top of earlier rows instead of their own line, showing menu
-  items overlapping into unreadable fused text. `art/mainmenu.pp` now skips
-  the top/bottom eroded bars (every other screen keeps them; this one alone
-  has double their usual option-row count) so the whole screen fits in 25
-  rows like every other screen in the project, confirmed by replaying a
-  captured session through terminal emulation at several screen heights.
+- **Every art screen double-spaced and smeared on real scene terminals**
+  (SyncTERM, TheDraw, anything ANSI.SYS-shaped). Two stacked causes, both
+  found from one SyncTERM photo. The big one: the generated art painted all
+  **80 columns and then sent a newline** -- ANSI.SYS-family renderers wrap
+  the cursor the instant column 80 is written, so that newline opened a
+  blank row under every full-width line, stretching the wordmarks to double
+  height, shearing the screens ("spaces between each line"), and smearing
+  absolute-positioned menu labels into the shifted art. Modern terminals
+  defer the wrap until the next glyph, which is why xterm-family screens
+  and the PNG previews always looked fine. All generated art now stops at
+  **79 columns** (the classic ANSI-scene safe width, capped centrally in
+  the art pipeline's serializers), which renders identically on every
+  terminal -- verified by replaying captured sessions through both an
+  immediate-wrap ANSI.SYS-style emulator and a deferred-wrap vt emulator at
+  80x25. Second, the main menu was also simply too tall: its 19 reserved
+  slots under the full wordmark-plus-bars chrome needed ~30 rows, so slot
+  markers past row 25 clamped onto earlier rows. `art/mainmenu.pp` now
+  skips the top/bottom eroded bars (this screen alone has double the usual
+  option-row count) and fits in 25 rows like everything else.
 - The main menu's `C` slot was labeled **"Page Sysop" but opened the
   teleconference** -- and the teleconference itself was listed nowhere.
   `C` is now labeled Teleconference (what it always ran), and the new `P`

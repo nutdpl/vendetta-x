@@ -27,6 +27,18 @@ MIDDOT_CP = 0xFA  # raw cp437 byte, for Canvas.set() (vs MIDDOT below: decoded s
 BLACK, RED, GREEN, BROWN, BLUE, MAGENTA, CYAN, GREY = range(8)
 DGREY, BRED, BGREEN, YELLOW, BBLUE, BMAGENTA, BCYAN, WHITE = range(8, 16)
 
+# Emit at most 79 columns per line, no matter how wide the canvas is. A line
+# that paints column 80 AND ends in a newline double-spaces on every
+# ANSI.SYS-family renderer (TheDraw, DOS ANSI.SYS, SyncTERM's ANSI-BBS/cterm):
+# those wrap the cursor to the next row THE MOMENT column 80 is written, so
+# the newline that follows opens a second, blank row under every full-width
+# line -- stretching the art to double height and shearing everything below
+# it (modern terminals defer the wrap until the next glyph, which is why
+# xterm-family screens and our PNG previews looked fine while real scene
+# terminals garbled). 79 columns + newline renders identically everywhere;
+# it's the classic ANSI-scene safe width for exactly this reason.
+MAX_EMIT_COLS = 79
+
 
 class Cell:
     __slots__ = ("cp", "fg", "bg")
@@ -38,7 +50,9 @@ class Cell:
 class Canvas:
     """A COLS x rows cell grid, serialized straight to CP437 bytes with plain
     \\n line endings (the board's renderer LF->CRLF's everything itself, and
-    never double-\\r's a line that already has one -- see render.go emitByte)."""
+    never double-\\r's a line that already has one -- see render.go emitByte).
+    Serialization emits at most MAX_EMIT_COLS (79) columns per row -- see
+    that constant for the ANSI.SYS/cterm wrap-doubling story."""
 
     def __init__(self, cols, rows):
         self.cols = cols
@@ -99,7 +113,7 @@ class Canvas:
                 out += self.raw_lines[y].encode("cp437", "replace")
                 cur = None
             else:
-                for c in row:
+                for c in row[:MAX_EMIT_COLS]:
                     key = (c.fg, c.bg)
                     if key != cur:
                         out += ("\x1b[0;%d;%dm" % (
@@ -124,7 +138,7 @@ class Canvas:
                 continue
             cur = None
             parts = []
-            for c in row:
+            for c in row[:MAX_EMIT_COLS]:
                 key = (c.fg, c.bg)
                 if key != cur:
                     parts.append("\\e[0;%d;%dm" % (

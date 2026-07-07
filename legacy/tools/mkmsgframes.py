@@ -151,7 +151,9 @@ def msgread():
 
 def msgedit():
     rng = random.Random(29)
-    w = 78
+    # 2-space indent + w visible cells must stay <= 79 total (dither.py
+    # MAX_EMIT_COLS: column 80 + newline double-spaces on ANSI.SYS/cterm).
+    w = 77
     # Half-block tab flourish bracketing "c o m p o s e", recolored to the
     # board's identity, trailed by the same gradient-eroded rule as msgread.
     flourish_l = "|05▄▄▄ |13▄▄|14▄ |15c o m p o s e |13▄▄|14▄ "
