@@ -41,11 +41,15 @@ MENUS = [
 
 def build(seed, name, title, subtitle, token, opts):
     random.seed(seed)
+    # top_bar=False: the whole screen (options + current line + bottom bar)
+    # must land within 24 rows -- SyncTERM's default 80x25-with-status-line
+    # leaves the session 24; anything painted past that scrolls the screen
+    # and knocks the lightbar out of alignment with its own labels.
     chrome, h = build_chrome(title, FONT_FILE, "Cybercrime", subtitle, cols=COLS,
-                              environment=True, ice=True)
+                              environment=True, ice=True, top_bar=False)
     ocol = max(1, (COLS - max(len(lbl) for _, lbl in opts)) // 2)
 
-    out = ["|CL"] + chrome
+    out = list(chrome)  # chrome's first line carries the |CL itself
     base = h + 1
     for i, (key, label) in enumerate(opts):
         out.append("|{%d,%d,%s,%s}" % (base + i, ocol, key, label))

@@ -19,24 +19,24 @@ import (
 // into the art's @@MENU_OPTIONS@@ placeholder on every render.
 
 // mainMenuSlotPos is where each slot paints -- must match the reserved
-// layout in art/mainmenu.pp (base row 15, just under the divider; left
-// column at col 8, right at col 44). Rows only go up to 24: mkmainmenu.py
-// deliberately skips the top/bottom eroded bars every other build_chrome
-// screen gets, because with 10 reserved left-column rows the full-bars
-// version needs ~30 terminal rows -- past a standard 80x25 terminal (e.g.
-// SyncTERM's out-of-the-box default), which clamps/scrolls the
-// absolute-position slot markers into each other (menu items overlapping
-// garbled text). If that art is ever regenerated with a different logo
-// height or column count, this map and mkmainmenu.py's
-// LEFT_SLOTS/RIGHT_SLOTS/LCOL/RCOL need to move in lockstep -- a test
-// (TestMainMenuSlotsComplete) at least catches the two lists drifting apart
-// from each other, though not from the art itself, and the last slot row
-// should stay well clear of row 25.
+// layout in art/mainmenu.pp (base row 14, just under the divider; left
+// column at col 8, right at col 44). The whole screen must fit within 24
+// rows: SyncTERM's default 80x25-with-status-line leaves the session only
+// 24, and any paint past the bottom row scrolls the screen one line --
+// which shears the already-painted labels one row off the absolute
+// positions the lightbar then repaints at (each label showing doubled,
+// one row apart). That's also why mkmainmenu.py skips the top/bottom
+// eroded bars other screens get: this screen alone carries 10 option
+// rows. If the art is ever regenerated with a different logo height or
+// column count, this map and mkmainmenu.py's LEFT_SLOTS/RIGHT_SLOTS/
+// LCOL/RCOL move in lockstep -- TestMainMenuSlotsComplete catches the two
+// lists drifting from each other, and TestArtFits80x24 catches any screen
+// (this one included, composed with its defaults) painting past row 24.
 var mainMenuSlotPos = map[string]struct{ Row, Col int }{
-	"L0": {15, 8}, "L1": {16, 8}, "L2": {17, 8}, "L3": {18, 8}, "L4": {19, 8},
-	"L5": {20, 8}, "L6": {21, 8}, "L7": {22, 8}, "L8": {23, 8}, "L9": {24, 8},
-	"R0": {15, 44}, "R1": {16, 44}, "R2": {17, 44}, "R3": {18, 44}, "R4": {19, 44},
-	"R5": {20, 44}, "R6": {21, 44}, "R7": {22, 44}, "R8": {23, 44},
+	"L0": {14, 8}, "L1": {15, 8}, "L2": {16, 8}, "L3": {17, 8}, "L4": {18, 8},
+	"L5": {19, 8}, "L6": {20, 8}, "L7": {21, 8}, "L8": {22, 8}, "L9": {23, 8},
+	"R0": {14, 44}, "R1": {15, 44}, "R2": {16, 44}, "R3": {17, 44}, "R4": {18, 44},
+	"R5": {19, 44}, "R6": {20, 44}, "R7": {21, 44}, "R8": {22, 44},
 }
 
 // mainMenuDefaults seeds a fresh board's main menu, matching exactly what

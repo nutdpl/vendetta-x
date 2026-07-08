@@ -61,7 +61,7 @@ def main():
     chrome, h = build_chrome("VENDETTA/X", FONT_FILE, "Cybercrime", "main menu",
                               cols=COLS, environment=True, ice=True, top_bar=False)
 
-    out = ["|CL"] + chrome
+    out = list(chrome)  # chrome's first line carries the |CL itself
 
     # The slot block: no options baked in here (see module docstring) -- one
     # placeholder line the Go renderer replaces with the sysop's current

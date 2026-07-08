@@ -122,11 +122,19 @@ semantic versioning.
   the art pipeline's serializers), which renders identically on every
   terminal -- verified by replaying captured sessions through both an
   immediate-wrap ANSI.SYS-style emulator and a deferred-wrap vt emulator at
-  80x25. Second, the main menu was also simply too tall: its 19 reserved
-  slots under the full wordmark-plus-bars chrome needed ~30 rows, so slot
-  markers past row 25 clamped onto earlier rows. `art/mainmenu.pp` now
-  skips the top/bottom eroded bars (this screen alone has double the usual
-  option-row count) and fits in 25 rows like everything else.
+  80x25. Second, the interactive screens were too tall for the terminal
+  they actually get: SyncTERM's default 80x25-with-status-line leaves the
+  session only **24 rows**, and any screen painting past its bottom row
+  scrolls the whole thing up a line -- shearing the already-painted
+  lightbar labels one row off the absolute positions the lightbar then
+  repaints at, so every menu item showed doubled, one row apart. All the
+  menu screens (main, messages, files) plus goodbye now fit within 24
+  rows: the `|CL` clear rides the first art row instead of burning its
+  own, and the taller screens drop the top eroded bar. Two CI tests keep
+  both properties from regressing: one audits every art line's width, the
+  other replays each served screen (main menu composed with its shipped
+  bindings) through an ANSI.SYS-style 80x24 emulator and fails on any
+  scroll or cursor jump past row 24.
 - The main menu's `C` slot was labeled **"Page Sysop" but opened the
   teleconference** -- and the teleconference itself was listed nowhere.
   `C` is now labeled Teleconference (what it always ran), and the new `P`
