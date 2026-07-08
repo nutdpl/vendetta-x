@@ -253,11 +253,13 @@ def build_chrome(title, font_file, font_name, subtitle, cols=80,
     erosion. Both default off so existing callers (matrix/submenus) render
     exactly as before.
 
-    Returns (lines, rows_consumed) where `lines` is ready to splice into a
-    .tpl `out` list right after "|CL", and `rows_consumed` is how many
-    terminal rows they occupy counting the |CL line's own row-advance (so a
-    caller can place the next thing at row `rows_consumed + 1` for a
-    one-row gap, with no further off-by-one math needed).
+    Returns (lines, rows_consumed) where `lines` is a complete screen
+    opening: the first line carries the |CL clear itself (merged into the
+    first art row so the clear doesn't burn a terminal row of its own --
+    every row matters now that screens must fit an 80x24 terminal, which
+    is what SyncTERM's default 80x25-with-status-line really leaves the
+    session), and `rows_consumed` is how many terminal rows they occupy,
+    so a caller places the next thing at row `rows_consumed + 1`.
     """
     rng = rng or random
     c = Canvas(cols, 4)
@@ -292,8 +294,8 @@ def build_chrome(title, font_file, font_name, subtitle, cols=80,
 
     lines = c.to_tpl_rows()[:div_y + 1]
     lines.append("|05──── |07|BN |05%s |07%s |05────" % (MIDDOT, subtitle))
-    # +1: the |CL line's own \n consumes a row before this content starts.
-    return lines, div_y + 2 + 1
+    lines[0] = "|CL" + lines[0]  # clear rides the first art row (see docstring)
+    return lines, div_y + 2
 
 
 def bottom_bar_lines(cols=80, rng=None, ice=False):

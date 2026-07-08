@@ -26,10 +26,13 @@ MIDDOT = bytes([0xFA]).decode("cp437")
 
 def main():
     random.seed(43)
+    # top_bar=False: everything through the bottom bar must land within 24
+    # rows (SyncTERM's 80x25-with-status-line leaves the session 24; painting
+    # past that scrolls the send-off mid-draw).
     chrome, h = build_chrome("GOODBYE", FONT_FILE, "Cybercrime", "logoff",
-                              cols=COLS, environment=True, ice=True)
+                              cols=COLS, environment=True, ice=True, top_bar=False)
 
-    out = ["|CL"] + chrome
+    out = list(chrome)  # chrome's first line carries the |CL itself
 
     base = h + 1
     lines = [
