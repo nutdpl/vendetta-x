@@ -8,6 +8,15 @@ semantic versioning.
 
 ### Added
 
+- **Make the board yours: per-user look & feel.** Two preferences on the
+  settings screen, editable over telnet/ssh *and* the web, honored on the
+  terminal faces. **Expert mode** drops the hand-holding for regulars who know
+  the board -- the main menu skips its line-by-line paint-on and the logon
+  walk skips the tour and the quick-logon prompt, going straight to the menu.
+  **12-hour clock** renders your times as 3:04pm instead of the 24-hour
+  default, on the logon greeting and your stats. Both ride on the users table
+  and default off, so nothing changes until you flip them.
+
 - **The web face breathes now.** Three things make the browser side feel as
   alive as the wire. **Live presence:** a Server-Sent-Events stream (`/events`,
   stdlib-only, no framework) pushes the who's-online list, and a ~20-line

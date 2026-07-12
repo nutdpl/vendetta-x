@@ -856,9 +856,10 @@ func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.Use
 		composed, keyToAction := b.mainMenuTemplate(items)
 
 		var opts []render.Marker
-		if first {
+		if first && !user.Expert {
 			// Paint the menu in line by line the first time the caller lands on
-			// it; redraws after backing out of a sub-area are instant.
+			// it; redraws after backing out of a sub-area are instant. Expert-
+			// mode callers skip the reveal and get the menu at once.
 			opts, _ = s.RevealBytes(composed, tok, 16*time.Millisecond)
 			first = false
 		} else {
@@ -1620,8 +1621,8 @@ func (b *board) profile(s *term.Session, user *store.User) {
 	row("Posts", strconv.Itoa(user.Posts))
 	row("Calls", strconv.Itoa(user.Calls))
 	row("Files", b.ratioLine(user))
-	row("First Call", dateOr(user.FirstCall))
-	row("Last Call", dateOr(user.LastCall))
+	row("First Call", dateOrClock(user.FirstCall, user.Clock12))
+	row("Last Call", dateOrClock(user.LastCall, user.Clock12))
 	row("Tagline", user.Tagline)
 	row("Flags", user.Flags)
 	row("Badges", strings.Join(badges.Titles(*user), " \xfa "))
@@ -1836,10 +1837,21 @@ func plural(n int, sing, plur string) string {
 	return plur
 }
 
-// dateOr formats t, or "never" for the zero time.
+// dateOr formats t in the board default (24-hour), or "never" for the zero
+// time.
 func dateOr(t time.Time) string {
+	return dateOrClock(t, false)
+}
+
+// dateOrClock formats t honoring a caller's clock preference: 12-hour AM/PM
+// when clock12 is set, otherwise the 24-hour default. "never" for the zero
+// time.
+func dateOrClock(t time.Time, clock12 bool) string {
 	if t.IsZero() {
 		return "never"
+	}
+	if clock12 {
+		return t.Format("2006-01-02 3:04pm")
 	}
 	return t.Format("2006-01-02 15:04")
 }

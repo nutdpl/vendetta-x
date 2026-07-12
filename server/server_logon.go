@@ -26,7 +26,7 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 		s.Print("  \x1b[1;30mLast on  \x1b[0;37m\xb7 \x1b[1;32mfirst call -- welcome aboard.\x1b[0m\r\n")
 	} else {
 		s.Printf("  \x1b[1;30mLast on  \x1b[0;37m\xb7 \x1b[1;37m%s \x1b[1;30m(%s)\x1b[0m\r\n",
-			dateOr(user.LastCall), relTime(user.LastCall))
+			dateOrClock(user.LastCall, user.Clock12), relTime(user.LastCall))
 	}
 	s.Printf("  \x1b[1;30mCall no. \x1b[0;37m\xb7 \x1b[1;37m#%d\x1b[0m\r\n", user.Calls+1)
 
@@ -88,6 +88,14 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 	if y := anniversaryYears(user.FirstCall, now); y > 0 {
 		s.Printf("  \x1b[1;35mAnniv.   \x1b[0;37m\xb7 \x1b[1;36m%d %s on the board today \x1b[1;30m-- thanks for still calling.\x1b[0m\r\n",
 			y, plural(y, "year", "years"))
+	}
+
+	// Expert-mode callers know the board; skip straight to the menu without the
+	// quick-logon prompt or the scenic tour.
+	if user.Expert {
+		s.Print("\x1b[0m\r\n")
+		s.Flush()
+		return
 	}
 
 	s.Print("\r\n\x1b[0;37m  Quick logon? \x1b[1;30m(\x1b[1;37mY\x1b[1;30m skips to the menu, \x1b[1;37mN\x1b[1;30m takes the tour) \x1b[1;36m[\x1b[1;37my/\x1b[1;33mN\x1b[1;36m] \x1b[1;37m")

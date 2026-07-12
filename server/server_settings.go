@@ -28,8 +28,11 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 		row("Email", user.Email)
 		row("Tagline", user.Tagline)
 		row("Birthday", orNotSet(user.Birthday))
+		row("Expert", onOff(user.Expert))
+		row("Clock", clockLabel(user.Clock12))
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mN\x1b[0;37m]ame  [\x1b[1;37mL\x1b[0;37m]ocation  [\x1b[1;37mE\x1b[0;37m]mail  [\x1b[1;37mT\x1b[0;37m]agline  [\x1b[1;37mB\x1b[0;37m]irthday  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
+		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mN\x1b[0;37m]ame  [\x1b[1;37mL\x1b[0;37m]ocation  [\x1b[1;37mE\x1b[0;37m]mail  [\x1b[1;37mT\x1b[0;37m]agline  [\x1b[1;37mB\x1b[0;37m]irthday\x1b[0m\r\n")
+		s.Print("\x1b[0;37m  [\x1b[1;37mX\x1b[0;37m]pert mode  [\x1b[1;37mK\x1b[0;37m] clock  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
 		s.Print("\x1b[0;37m  Choice \x1b[1;36m> \x1b[1;37m")
 		s.Flush()
 
@@ -93,6 +96,20 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 			}
 			s.Print("\x1b[1;32m  Saved.\x1b[0m\r\n")
 			s.Pause()
+		case 'x':
+			if err := b.st.SetPrefs(user.ID, !user.Expert, user.Clock12); err != nil {
+				s.Notice("Could not update expert mode.")
+				continue
+			}
+			s.Printf("\x1b[1;32m  Expert mode %s.\x1b[0m\r\n", onOff(!user.Expert))
+			s.Pause()
+		case 'k':
+			if err := b.st.SetPrefs(user.ID, user.Expert, !user.Clock12); err != nil {
+				s.Notice("Could not update your clock.")
+				continue
+			}
+			s.Printf("\x1b[1;32m  Clock set to %s.\x1b[0m\r\n", clockLabel(!user.Clock12))
+			s.Pause()
 		case 'p':
 			b.changePassword(s, user)
 		case 'q':
@@ -108,6 +125,22 @@ func orNotSet(s string) string {
 		return "(not set)"
 	}
 	return s
+}
+
+// onOff renders a boolean toggle as "on"/"off" for the settings rows.
+func onOff(b bool) string {
+	if b {
+		return "on"
+	}
+	return "off"
+}
+
+// clockLabel names a caller's clock preference.
+func clockLabel(clock12 bool) string {
+	if clock12 {
+		return "12-hour"
+	}
+	return "24-hour"
 }
 
 // changePassword runs the password change flow on the settings screen: verify

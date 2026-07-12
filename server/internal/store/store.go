@@ -38,6 +38,11 @@ type User struct {
 	// Birthday is the caller's birthday as canonical "MM-DD" (month-day only,
 	// so the board never stores an age); "" means not set. See SetBirthday.
 	Birthday string
+	// Per-user look & feel. Expert skips the menu paint-on and the logon tour
+	// for callers who know the board; Clock12 renders their times in 12-hour
+	// AM/PM instead of the 24-hour default. Honored on the terminal faces.
+	Expert  bool
+	Clock12 bool
 }
 
 // Privileged reports whether u carries board-admin authority: SL >= 100 or the
@@ -189,7 +194,9 @@ CREATE TABLE IF NOT EXISTS users (
 	last_call  INTEGER NOT NULL DEFAULT 0,
 	password   TEXT NOT NULL DEFAULT '',
 	flags      TEXT NOT NULL DEFAULT '',
-	birthday   TEXT NOT NULL DEFAULT ''
+	birthday   TEXT NOT NULL DEFAULT '',
+	expert     INTEGER NOT NULL DEFAULT 0,
+	clock12    INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle_nocase
 	ON users (handle COLLATE NOCASE);
@@ -283,6 +290,8 @@ CREATE TABLE IF NOT EXISTS lastread (
 		`ALTER TABLE files ADD COLUMN hash TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE files ADD COLUMN approved INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE users ADD COLUMN birthday TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE users ADD COLUMN expert INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN clock12 INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, stmt := range addColumns {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -449,18 +458,22 @@ func (s *Store) Seed() error {
 
 // ---- users -----------------------------------------------------------------
 
-const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags, uploads, downloads, ul_bytes, dl_bytes, birthday`
+const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags, uploads, downloads, ul_bytes, dl_bytes, birthday, expert, clock12`
 
 func scanUser(sc interface{ Scan(...any) error }) (*User, error) {
 	var u User
 	var first, last int64
+	var expert, clock12 int
 	if err := sc.Scan(&u.ID, &u.Handle, &u.RealName, &u.Email, &u.Location,
 		&u.Tagline, &u.Group, &u.SL, &u.DSL, &u.Posts, &u.Calls, &first, &last,
-		&u.Password, &u.Flags, &u.Uploads, &u.Downloads, &u.UlBytes, &u.DlBytes, &u.Birthday); err != nil {
+		&u.Password, &u.Flags, &u.Uploads, &u.Downloads, &u.UlBytes, &u.DlBytes,
+		&u.Birthday, &expert, &clock12); err != nil {
 		return nil, err
 	}
 	u.FirstCall = fromUnix(first)
 	u.LastCall = fromUnix(last)
+	u.Expert = expert != 0
+	u.Clock12 = clock12 != 0
 	return &u, nil
 }
 
@@ -1042,6 +1055,24 @@ func (s *Store) SetBirthday(id int64, in string) error {
 		return fmt.Errorf("store: set birthday: %w", err)
 	}
 	return nil
+}
+
+// SetPrefs stores a caller's per-user look & feel flags (expert mode, 12-hour
+// clock). A pure toggle write; the settings screen on either face calls it.
+func (s *Store) SetPrefs(id int64, expert, clock12 bool) error {
+	if _, err := s.db.Exec(
+		`UPDATE users SET expert = ?, clock12 = ? WHERE id = ?`,
+		boolToInt(expert), boolToInt(clock12), id); err != nil {
+		return fmt.Errorf("store: set prefs: %w", err)
+	}
+	return nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // UserByID returns the user with the given id, or nil,nil if not found.

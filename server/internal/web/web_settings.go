@@ -68,6 +68,13 @@ func (s *server) settingsSave(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/settings?err=Could+not+save+your+profile.", http.StatusSeeOther)
 		return
 	}
+	// Per-user look & feel (honored on the terminal faces): checkboxes post the
+	// field only when ticked.
+	expert := r.FormValue("expert") != ""
+	clock12 := r.FormValue("clock12") != ""
+	if err := s.st.SetPrefs(u.ID, expert, clock12); err != nil {
+		log.Printf("web: settings SetPrefs: %v", err)
+	}
 	http.Redirect(w, r, "/settings?ok=profile", http.StatusSeeOther)
 }
 

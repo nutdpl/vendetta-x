@@ -26,6 +26,11 @@
         <label for="s-bday">birthday <span class="opt">(MM-DD, no year &mdash; leave blank to hide)</span></label>
         <input id="s-bday" type="text" name="birthday" maxlength="5" placeholder="07-12" value="{{.User.Birthday}}">
       </div>
+      <fieldset class="prefset">
+        <legend>terminal look &amp; feel <span class="opt">(over telnet / ssh)</span></legend>
+        <label class="checkrow"><input type="checkbox" name="expert" value="1"{{if .User.Expert}} checked{{end}}> expert mode <span class="opt">&mdash; skip the menu paint-on and logon tour</span></label>
+        <label class="checkrow"><input type="checkbox" name="clock12" value="1"{{if .User.Clock12}} checked{{end}}> 12-hour clock <span class="opt">&mdash; show times as 3:04pm instead of 15:04</span></label>
+      </fieldset>
       <div class="authactions">
         <button class="btn btn-primary" type="submit">save profile</button>
       </div>

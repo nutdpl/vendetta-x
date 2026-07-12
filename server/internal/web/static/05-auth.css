@@ -79,3 +79,10 @@
 @media (max-width: 560px) {
   .account { width: 100%; margin: 8px 0 0; }
 }
+
+/* per-user terminal preferences on the settings page */
+.prefset { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s3); margin-bottom: var(--s3); }
+.prefset legend { padding: 0 var(--s2); color: var(--ink-dim); font-size: var(--fz-sm); }
+.checkrow { display: flex; align-items: baseline; gap: var(--s2); margin-bottom: var(--s2); cursor: pointer; }
+.checkrow:last-child { margin-bottom: 0; }
+.checkrow input { flex: 0 0 auto; }
