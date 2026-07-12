@@ -23,6 +23,10 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("web: Oneliners: %v", err)
 	}
+	freshFiles, err := s.st.RecentFiles(6)
+	if err != nil {
+		log.Printf("web: RecentFiles: %v", err)
+	}
 	users, err := s.st.Users()
 	if err != nil {
 		log.Printf("web: Users: %v", err)
@@ -68,6 +72,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "home", struct {
 		pageData
 		Recent      []store.Message
+		FreshFiles  []store.FileEntry
 		Oneliners   []store.Oneliner
 		TotalUsers  int
 		TotalMsgs   int
@@ -82,6 +87,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 	}{
 		pageData:    base,
 		Recent:      recent,
+		FreshFiles:  freshFiles,
 		Oneliners:   ones,
 		TotalUsers:  len(users),
 		TotalMsgs:   totalMsgs,

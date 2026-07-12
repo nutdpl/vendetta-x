@@ -8,6 +8,16 @@ semantic versioning.
 
 ### Added
 
+- **The web face breathes now.** Three things make the browser side feel as
+  alive as the wire. **Live presence:** a Server-Sent-Events stream (`/events`,
+  stdlib-only, no framework) pushes the who's-online list, and a ~20-line
+  vanilla script repaints the masthead node bar as callers come and go -- no
+  reload. **A fuller front page:** the home dashboard gains a "fresh uploads"
+  feed beside recent messages, so the newest files show the moment they land.
+  **Reach for the open web:** a public `/feed.atom` (sysop-toggleable) carries
+  recent posts from world-readable bases only -- nothing gated ever leaks --
+  with a discovery `<link>` in every page head.
+
 - **The sysop cockpit: stats + a real audit trail.** Two new read-only pages
   in the panel. `/sysop/stats` shows the board at a glance -- total users,
   messages, files, bytes stored -- over a 30-day activity sparkline (posts,

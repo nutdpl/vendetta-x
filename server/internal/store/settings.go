@@ -83,6 +83,7 @@ var Features = []Feature{
 	{"qwk", "QWK Mail", "Offline-mail summary + digest"},
 	{"newfiles", "New Files", "Newest-uploads scan"},
 	{"search", "Search", "Search messages and files across every base"},
+	{"feeds", "Atom Feed", "Public /feed.atom of recent posts for the open web"},
 	{"oneliners", "Oneliners", "The wall"},
 	{"teleconference", "Teleconference", "Multi-node live chat"},
 	{"paging", "Page Sysop", "Callers can page the operator (delivered as mail)"},

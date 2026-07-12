@@ -7,6 +7,7 @@
 <title>{{.Title}} :: Vendetta/X</title>
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" type="image/png" href="/static/img/favicon.png">
+{{if .Features.feeds}}<link rel="alternate" type="application/atom+xml" title="Vendetta/X posts" href="/feed.atom">{{end}}
 </head>
 <body>
 <div class="wrap">
@@ -39,7 +40,7 @@
     </div>
   </header>
 
-  <div class="nodes" aria-label="nodes online">
+  <div class="nodes" id="nodebar" aria-label="nodes online" aria-live="polite">
     <span class="label">nodes online</span>
     {{if .Online}}
       {{range .Online}}<span class="node">{{.}}</span>{{end}}
@@ -61,5 +62,34 @@
   </footer>
 
 </div>
+<script>
+/* Live presence: subscribe to the SSE stream and repaint the node bar as
+   callers come and go -- no reload, no framework. Node handles are set via
+   textContent so they can never inject markup. */
+(function () {
+  var bar = document.getElementById('nodebar');
+  if (!bar || !window.EventSource) return;
+  var es = new EventSource('/events');
+  es.addEventListener('presence', function (ev) {
+    var data;
+    try { data = JSON.parse(ev.data); } catch (e) { return; }
+    var nodes = (data && data.nodes) || [];
+    while (bar.childNodes.length > 1) bar.removeChild(bar.lastChild);
+    if (nodes.length) {
+      nodes.forEach(function (n) {
+        var s = document.createElement('span');
+        s.className = 'node';
+        s.textContent = n;
+        bar.appendChild(s);
+      });
+    } else {
+      var e = document.createElement('span');
+      e.className = 'node empty';
+      e.textContent = '- silence on the wire -';
+      bar.appendChild(e);
+    }
+  });
+})();
+</script>
 </body>
 </html>{{end}}

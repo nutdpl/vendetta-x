@@ -771,6 +771,24 @@ func (s *Store) Files(areaID int64) ([]FileEntry, error) {
 	return scanFileRows(rows, "files")
 }
 
+// RecentFiles returns the newest approved uploads across every area, newest
+// first, capped at limit (limit<=0 means all) -- the "fresh files" feed. The
+// caller applies any per-area ACS filtering it needs.
+func (s *Store) RecentFiles(limit int) ([]FileEntry, error) {
+	q := `SELECT ` + fileCols + ` FROM files WHERE approved != 0 ORDER BY uploaded DESC, id DESC`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		rows, err = s.db.Query(q+` LIMIT ?`, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("store: recent files: %w", err)
+	}
+	return scanFileRows(rows, "recent files")
+}
+
 // PendingFiles lists every upload waiting in the review queue, oldest first.
 func (s *Store) PendingFiles() ([]FileEntry, error) {
 	rows, err := s.db.Query(

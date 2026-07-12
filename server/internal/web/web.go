@@ -127,6 +127,8 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("POST /boards/{id}", s.postMessage)
 	mux.HandleFunc("GET /files", s.files)
 	mux.HandleFunc("GET /search", s.feature("search", s.search))
+	mux.HandleFunc("GET /events", s.sseEvents) // SSE live presence
+	mux.HandleFunc("GET /feed.atom", s.feature("feeds", s.feed))
 	mux.HandleFunc("POST /files/{id}/upload", s.uploadFile)
 	mux.HandleFunc("GET /users", s.users)
 	mux.HandleFunc("GET /users/{handle}", s.userProfile)

@@ -34,6 +34,22 @@
     {{end}}
   </section>
 
+  <section class="panel">
+    <h2 class="ph">fresh uploads{{if .FreshFiles}} <span class="chip">{{len .FreshFiles}}</span>{{end}}</h2>
+    {{if .FreshFiles}}
+      <ul class="msglist">
+        {{range .FreshFiles}}
+          <li>
+            <a class="msubject" href="/files?area={{.AreaID}}">{{trunc 40 .Filename}}</a>
+            <span class="mmeta">{{fsize .Size}} &middot; by <b>{{with .Uploader}}{{.}}{{else}}anon{{end}}</b> &middot; {{since .Uploaded}}</span>
+          </li>
+        {{end}}
+      </ul>
+    {{else}}
+      <p class="empty">Nothing uploaded yet. The vault's empty &mdash; fill it on <a href="/files">/files</a>.</p>
+    {{end}}
+  </section>
+
   <section class="panel" id="wall">
     <h2 class="ph">the wall{{if .Oneliners}} <span class="chip">{{len .Oneliners}}</span>{{end}}</h2>
     {{if .Oneliners}}
