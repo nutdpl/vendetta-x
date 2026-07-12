@@ -8,6 +8,14 @@ semantic versioning.
 
 ### Added
 
+- **Birthdays & board anniversaries.** Set an optional birthday (month-day only
+  -- the board never stores a year, so it can't know your age) on the settings
+  screen over telnet/ssh or the web, and on the day the logon greeting rings it
+  out ("-!- happy birthday -!-"); the web profile shows it with a "today!" star.
+  Your **board anniversary** rides along for free, derived from your first-call
+  date: "6 years on the board today -- thanks for still calling." Pure flavor,
+  disproportionate charm.
+
 - **Achievements.** Callers now earn scene-flavored badges as their counters
   climb -- "100 posts -> CO-CONSPIRATOR", "50 uploads -> COURIER", a GB shared
   -> WAREZ BARON, plus a STAFF mark for the operator. They're pure derivation

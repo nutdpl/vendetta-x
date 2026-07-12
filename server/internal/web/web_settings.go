@@ -57,6 +57,12 @@ func (s *server) settingsSave(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.FormValue("email"))
 	location := strings.TrimSpace(r.FormValue("location"))
 	tagline := strings.TrimSpace(r.FormValue("tagline"))
+	// Birthday is validated before anything is written, so a bad date reports
+	// cleanly instead of half-saving the profile.
+	if err := s.st.SetBirthday(u.ID, r.FormValue("birthday")); err != nil {
+		http.Redirect(w, r, "/settings?err=Birthday+must+look+like+MM-DD.", http.StatusSeeOther)
+		return
+	}
 	if err := s.st.UpdateProfile(u.ID, realName, email, location, tagline); err != nil {
 		log.Printf("web: settings UpdateProfile: %v", err)
 		http.Redirect(w, r, "/settings?err=Could+not+save+your+profile.", http.StatusSeeOther)

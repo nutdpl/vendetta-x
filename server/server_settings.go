@@ -27,8 +27,9 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 		row("Location", user.Location)
 		row("Email", user.Email)
 		row("Tagline", user.Tagline)
+		row("Birthday", orNotSet(user.Birthday))
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mN\x1b[0;37m]ame  [\x1b[1;37mL\x1b[0;37m]ocation  [\x1b[1;37mE\x1b[0;37m]mail  [\x1b[1;37mT\x1b[0;37m]agline  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
+		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mN\x1b[0;37m]ame  [\x1b[1;37mL\x1b[0;37m]ocation  [\x1b[1;37mE\x1b[0;37m]mail  [\x1b[1;37mT\x1b[0;37m]agline  [\x1b[1;37mB\x1b[0;37m]irthday  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
 		s.Print("\x1b[0;37m  Choice \x1b[1;36m> \x1b[1;37m")
 		s.Flush()
 
@@ -82,12 +83,31 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 			}
 			s.Print("\x1b[1;32m  Saved.\x1b[0m\r\n")
 			s.Pause()
+		case 'b':
+			s.Print("\x1b[0;37m  Birthday \x1b[1;30m(MM-DD, blank to clear)\x1b[0;37m: \x1b[1;37m")
+			s.Flush()
+			val := strings.TrimSpace(s.ReadLine(10))
+			if err := b.st.SetBirthday(user.ID, val); err != nil {
+				s.Notice("That's not a date I recognize -- try MM-DD, like 07-12.")
+				continue
+			}
+			s.Print("\x1b[1;32m  Saved.\x1b[0m\r\n")
+			s.Pause()
 		case 'p':
 			b.changePassword(s, user)
 		case 'q':
 			return
 		}
 	}
+}
+
+// orNotSet returns s, or a dim "(not set)" marker when it's empty -- for the
+// settings rows a caller hasn't filled in yet.
+func orNotSet(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "(not set)"
+	}
+	return s
 }
 
 // changePassword runs the password change flow on the settings screen: verify

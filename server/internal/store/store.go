@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,9 @@ type User struct {
 	Password string
 	// Flags is the user's ACS flag set, e.g. "AC" means flags A and C are set.
 	Flags string
+	// Birthday is the caller's birthday as canonical "MM-DD" (month-day only,
+	// so the board never stores an age); "" means not set. See SetBirthday.
+	Birthday string
 }
 
 // Privileged reports whether u carries board-admin authority: SL >= 100 or the
@@ -184,7 +188,8 @@ CREATE TABLE IF NOT EXISTS users (
 	first_call INTEGER NOT NULL DEFAULT 0,
 	last_call  INTEGER NOT NULL DEFAULT 0,
 	password   TEXT NOT NULL DEFAULT '',
-	flags      TEXT NOT NULL DEFAULT ''
+	flags      TEXT NOT NULL DEFAULT '',
+	birthday   TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle_nocase
 	ON users (handle COLLATE NOCASE);
@@ -277,6 +282,7 @@ CREATE TABLE IF NOT EXISTS lastread (
 		`ALTER TABLE messages ADD COLUMN reply_to INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE files ADD COLUMN hash TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE files ADD COLUMN approved INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE users ADD COLUMN birthday TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, stmt := range addColumns {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -443,14 +449,14 @@ func (s *Store) Seed() error {
 
 // ---- users -----------------------------------------------------------------
 
-const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags, uploads, downloads, ul_bytes, dl_bytes`
+const userCols = `id, handle, real_name, email, location, tagline, grp, sl, dsl, posts, calls, first_call, last_call, password, flags, uploads, downloads, ul_bytes, dl_bytes, birthday`
 
 func scanUser(sc interface{ Scan(...any) error }) (*User, error) {
 	var u User
 	var first, last int64
 	if err := sc.Scan(&u.ID, &u.Handle, &u.RealName, &u.Email, &u.Location,
 		&u.Tagline, &u.Group, &u.SL, &u.DSL, &u.Posts, &u.Calls, &first, &last,
-		&u.Password, &u.Flags, &u.Uploads, &u.Downloads, &u.UlBytes, &u.DlBytes); err != nil {
+		&u.Password, &u.Flags, &u.Uploads, &u.Downloads, &u.UlBytes, &u.DlBytes, &u.Birthday); err != nil {
 		return nil, err
 	}
 	u.FirstCall = fromUnix(first)
@@ -973,6 +979,49 @@ func (s *Store) UpdateProfile(id int64, realName, email, location, tagline strin
 		`UPDATE users SET real_name = ?, email = ?, location = ?, tagline = ? WHERE id = ?`,
 		realName, email, location, tagline, id); err != nil {
 		return fmt.Errorf("store: update profile: %w", err)
+	}
+	return nil
+}
+
+// NormalizeBirthday parses a caller-entered birthday into canonical "MM-DD"
+// (month-day only -- the board deliberately never stores a birth year, so it
+// can't derive an age). It accepts MM-DD or MM/DD, tolerates single-digit
+// month/day, returns "" for empty input, and errors on anything that isn't a
+// real calendar day (Feb 29 is allowed).
+func NormalizeBirthday(in string) (string, error) {
+	in = strings.TrimSpace(in)
+	if in == "" {
+		return "", nil
+	}
+	in = strings.ReplaceAll(in, "/", "-")
+	parts := strings.Split(in, "-")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("birthday must look like MM-DD")
+	}
+	m, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	d, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err1 != nil || err2 != nil {
+		return "", fmt.Errorf("birthday must be numbers, MM-DD")
+	}
+	// A leap year makes 02-29 a valid day; time normalizes overflow, so we
+	// reject anything that didn't survive the round-trip unchanged.
+	t := time.Date(2000, time.Month(m), d, 12, 0, 0, 0, time.UTC)
+	if m < 1 || m > 12 || d < 1 || int(t.Month()) != m || t.Day() != d {
+		return "", fmt.Errorf("%q is not a real date", in)
+	}
+	return fmt.Sprintf("%02d-%02d", m, d), nil
+}
+
+// SetBirthday validates and stores a caller's birthday (canonical "MM-DD"; an
+// empty string clears it). It returns an error on an invalid date so the
+// caller can surface it without writing garbage.
+func (s *Store) SetBirthday(id int64, in string) error {
+	mmdd, err := NormalizeBirthday(in)
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`UPDATE users SET birthday = ? WHERE id = ?`, mmdd, id); err != nil {
+		return fmt.Errorf("store: set birthday: %w", err)
 	}
 	return nil
 }

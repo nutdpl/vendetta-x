@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"vendetta-x/server/internal/badges"
 	"vendetta-x/server/internal/store"
@@ -63,9 +64,11 @@ func (s *server) userProfile(w http.ResponseWriter, r *http.Request) {
 
 	s.render(w, "profile", struct {
 		pageData
-		User   store.User
-		Flags  []string
-		Posts  []store.Message
-		Badges []badges.Badge
-	}{s.base(r, u.Handle, "users"), *u, flags, posts, badges.Earned(*u)})
+		User      store.User
+		Flags     []string
+		Posts     []store.Message
+		Badges    []badges.Badge
+		BdayToday bool
+	}{s.base(r, u.Handle, "users"), *u, flags, posts, badges.Earned(*u),
+		u.Birthday != "" && u.Birthday == time.Now().Format("01-02")})
 }

@@ -38,6 +38,7 @@
         {{if .User.Email}}<tr><th>email</th><td>{{.User.Email}}</td></tr>{{end}}
         <tr><th>first call</th><td>{{ddate .User.FirstCall}}</td></tr>
         <tr><th>last call</th><td>{{since .User.LastCall}}</td></tr>
+        {{if .User.Birthday}}<tr><th>birthday</th><td>{{.User.Birthday}}{{if .BdayToday}} <span class="pbadge"><span class="pb-star">&#9733;</span>today!</span>{{end}}</td></tr>{{end}}
         <tr>
           <th>flags</th>
           <td>

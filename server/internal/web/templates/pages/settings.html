@@ -22,6 +22,10 @@
         <label for="s-tag">tagline</label>
         <input id="s-tag" type="text" name="tagline" maxlength="60" value="{{.User.Tagline}}">
       </div>
+      <div class="field">
+        <label for="s-bday">birthday <span class="opt">(MM-DD, no year &mdash; leave blank to hide)</span></label>
+        <input id="s-bday" type="text" name="birthday" maxlength="5" placeholder="07-12" value="{{.User.Birthday}}">
+      </div>
       <div class="authactions">
         <button class="btn btn-primary" type="submit">save profile</button>
       </div>

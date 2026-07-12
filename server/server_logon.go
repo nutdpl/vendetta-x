@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/store"
 	"vendetta-x/server/internal/term"
@@ -75,6 +77,17 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 			s.Printf("  \x1b[1;30mNew blood\x1b[0;37m\xb7 \x1b[1;37m%d\x1b[0;37m %s joined since you were on\x1b[0m\r\n",
 				n, plural(n, "caller", "callers"))
 		}
+	}
+
+	// A little board culture: ring the caller's birthday and their board
+	// anniversary (years since first call) when today is the day.
+	now := time.Now()
+	if isBirthdayToday(user.Birthday, now) {
+		s.Printf("  \x1b[1;35mBirthday \x1b[0;37m\xb7 \x1b[1;33m-!- happy birthday, %s! -!-\x1b[0m\r\n", user.Handle)
+	}
+	if y := anniversaryYears(user.FirstCall, now); y > 0 {
+		s.Printf("  \x1b[1;35mAnniv.   \x1b[0;37m\xb7 \x1b[1;36m%d %s on the board today \x1b[1;30m-- thanks for still calling.\x1b[0m\r\n",
+			y, plural(y, "year", "years"))
 	}
 
 	s.Print("\r\n\x1b[0;37m  Quick logon? \x1b[1;30m(\x1b[1;37mY\x1b[1;30m skips to the menu, \x1b[1;37mN\x1b[1;30m takes the tour) \x1b[1;36m[\x1b[1;37my/\x1b[1;33mN\x1b[1;36m] \x1b[1;37m")
