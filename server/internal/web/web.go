@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"vendetta-x/server/internal/acs"
+	"vendetta-x/server/internal/audit"
 	"vendetta-x/server/internal/bbslist"
 	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/door"
@@ -107,6 +108,7 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	s.guard, _ = guard.New(st.DB())
 	s.ftn, _ = ftn.NewStore(st.DB())
 	s.menu, _ = menu.New(st.DB())
+	s.audit, _ = audit.New(st.DB())
 	s.tmpl = parseTemplates()
 
 	mux := http.NewServeMux()
@@ -177,6 +179,10 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	// sysop panel: every route is admin-gated by s.admin (SL >= 100 / flag A).
 	// This is the board's configuration program -- full CRUD over every entity.
 	mux.HandleFunc("GET /sysop", s.admin(s.sysop))
+
+	// stats dashboard + audit trail (read-only)
+	mux.HandleFunc("GET /sysop/stats", s.admin(s.sysopStats))
+	mux.HandleFunc("GET /sysop/audit", s.admin(s.sysopAudit))
 
 	// users
 	mux.HandleFunc("GET /sysop/users", s.admin(s.sysopUsers))
@@ -339,6 +345,7 @@ type server struct {
 	guard     *guard.Store
 	ftn       *ftn.Store
 	menu      *menu.Store
+	audit     *audit.Store
 }
 
 // parseTemplates builds one isolated template set per page file, each set being
@@ -399,9 +406,16 @@ func (s *server) admin(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		// Audit every sysop mutation (state-changing requests) with the actor
-		// and source, so config/user/content changes leave a trail.
+		// and source, so config/user/content changes leave a durable trail --
+		// to the audit table (read back at /sysop/audit) and the process log.
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			log.Printf("[audit] %s %s by %s from %s", r.Method, r.URL.Path, u.Handle, s.clientIP(r))
+			ip := s.clientIP(r)
+			log.Printf("[audit] %s %s by %s from %s", r.Method, r.URL.Path, u.Handle, ip)
+			if s.audit != nil {
+				if err := s.audit.Record(u.Handle, r.Method, r.URL.Path, ip); err != nil {
+					log.Printf("web: audit record: %v", err)
+				}
+			}
 		}
 		h(w, r)
 	}

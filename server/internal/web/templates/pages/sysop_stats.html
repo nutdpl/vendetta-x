@@ -1,0 +1,51 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "stats")}}
+
+<section class="panel">
+  <h2 class="ph">the board at a glance</h2>
+  <div class="stats">
+    {{template "c-stat" (dict "val" .Totals.Users "label" "users" "grad" true)}}
+    {{template "c-stat" (dict "val" .Totals.Posts "label" "messages")}}
+    {{template "c-stat" (dict "val" .Totals.Files "label" "files")}}
+    {{template "c-stat" (dict "val" (fsize .Totals.StoredBytes) "label" "stored")}}
+  </div>
+</section>
+
+<section class="panel">
+  <h2 class="ph">last {{.WindowDays}} days
+    <span class="chip">{{.SumPosts}} posts &middot; {{.SumUploads}} up &middot; {{.SumSignups}} new</span>
+  </h2>
+  <div class="statlegend">
+    <span class="sl-key"><span class="sw sw-posts"></span> posts</span>
+    <span class="sl-key"><span class="sw sw-uploads"></span> uploads</span>
+    <span class="sl-key"><span class="sw sw-signups"></span> signups</span>
+  </div>
+  <div class="spark" role="img" aria-label="daily activity for the last {{.WindowDays}} days">
+    {{range .Bars}}
+      <div class="spark-day" title="{{.Day}} &middot; {{.Posts}} posts, {{.Uploads}} uploads, {{.Signups}} signups">
+        <div class="spark-stack">
+          <span class="spark-bar sb-posts"   style="height:{{.PostsPct}}%"></span>
+          <span class="spark-bar sb-uploads" style="height:{{.UploadsPct}}%"></span>
+          <span class="spark-bar sb-signups" style="height:{{.SignupsPct}}%"></span>
+        </div>
+      </div>
+    {{end}}
+  </div>
+</section>
+
+<section class="panel">
+  <h2 class="ph">busiest bases</h2>
+  {{if .TopBoards}}
+    <table class="table">
+      <thead><tr><th>base</th><th class="num">messages</th></tr></thead>
+      <tbody>
+        {{range .TopBoards}}
+          <tr><td>{{.Name}}</td><td class="num">{{.Count}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">No boards yet.</p>
+  {{end}}
+</section>
+{{end}}

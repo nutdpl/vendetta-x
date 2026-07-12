@@ -1,0 +1,31 @@
+{{define "content"}}
+{{template "sysop-nav" (dict "active" "audit")}}
+
+<section class="panel">
+  <h2 class="ph">audit trail <span class="chip">{{.Total}} recorded</span></h2>
+  <p class="sg-note">Every state-changing action in the sysop panel -- who did it, from where, and when. Read-only; the most recent 500 are shown.</p>
+  <form method="get" action="/sysop/audit" class="auditfilter">
+    <input type="text" name="actor" value="{{.Actor}}" placeholder="filter by actor (handle)" autocomplete="off">
+    <button class="btn btn-sm" type="submit">filter</button>
+    {{if .Actor}}<a class="btn btn-sm" href="/sysop/audit">clear</a>{{end}}
+  </form>
+
+  {{if .Entries}}
+    <table class="table audit-table">
+      <thead><tr><th>when</th><th>actor</th><th>action</th><th>from</th></tr></thead>
+      <tbody>
+        {{range .Entries}}
+          <tr>
+            <td class="mono">{{fdate .At}}</td>
+            <td><a href="/sysop/audit?actor={{.Actor}}">{{.Actor}}</a></td>
+            <td><span class="badge dim">{{.Method}}</span> <span class="mono">{{.Path}}</span></td>
+            <td class="mono">{{.IP}}</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="empty">{{if .Actor}}No actions by an actor matching &ldquo;{{.Actor}}&rdquo;.{{else}}No actions recorded yet.{{end}}</p>
+  {{end}}
+</section>
+{{end}}

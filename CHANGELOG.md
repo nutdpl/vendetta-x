@@ -8,6 +8,16 @@ semantic versioning.
 
 ### Added
 
+- **The sysop cockpit: stats + a real audit trail.** Two new read-only pages
+  in the panel. `/sysop/stats` shows the board at a glance -- total users,
+  messages, files, bytes stored -- over a 30-day activity sparkline (posts,
+  uploads and signups side by side) and a "busiest bases" ranking, all derived
+  from timestamps already on disk. `/sysop/audit` turns the audit log from a
+  stdout line into a durable, filterable table: every state-changing action in
+  the panel is now recorded (actor, method, path, source IP) to its own table
+  and read back newest-first, filterable by actor -- so "who changed this, and
+  when?" finally has an answer.
+
 - **Birthdays & board anniversaries.** Set an optional birthday (month-day only
   -- the board never stores a year, so it can't know your age) on the settings
   screen over telnet/ssh or the web, and on the day the logon greeting rings it

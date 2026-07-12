@@ -6,6 +6,8 @@
 {{define "sysop-nav"}}
 <nav class="sysnav" aria-label="sysop">
   <a href="/sysop"           class="{{if eq .active "dash"}}on{{end}}">dashboard</a>
+  <a href="/sysop/stats"     class="{{if eq .active "stats"}}on{{end}}">stats</a>
+  <a href="/sysop/audit"     class="{{if eq .active "audit"}}on{{end}}">audit</a>
   <a href="/sysop/users"     class="{{if eq .active "users"}}on{{end}}">users</a>
   <a href="/sysop/boards"    class="{{if eq .active "config"}}on{{end}}">message bases</a>
   <a href="/sysop/areas"     class="{{if eq .active "areas"}}on{{end}}">file areas</a>
