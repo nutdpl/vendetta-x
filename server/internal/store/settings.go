@@ -84,6 +84,7 @@ var Features = []Feature{
 	{"newfiles", "New Files", "Newest-uploads scan"},
 	{"search", "Search", "Search messages and files across every base"},
 	{"feeds", "Atom Feed", "Public /feed.atom of recent posts for the open web"},
+	{"webterm", "Web Terminal", "The full ANSI board in a browser tab (xterm.js over a WebSocket)"},
 	{"oneliners", "Oneliners", "The wall"},
 	{"teleconference", "Teleconference", "Multi-node live chat"},
 	{"paging", "Page Sysop", "Callers can page the operator (delivered as mail)"},

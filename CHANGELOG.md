@@ -8,6 +8,18 @@ semantic versioning.
 
 ### Added
 
+- **The web terminal: the real board in a browser tab.** A new `/terminal` page
+  runs the genuine ANSI board -- the modem connect ceremony, the login matrix,
+  lightbar menus, the full-screen editor, the doors -- live in the browser, with
+  zero install. It's the actual session, not a rendering: a small stdlib RFC 6455
+  WebSocket endpoint (`/ws-term`, no third-party server library) hands its
+  upgraded socket to the same board entry the ssh face uses, so the node cap,
+  bans, and login throttle all apply. The client is a vendored **xterm.js**
+  (embedded in the binary -- the board stays a single self-contained
+  executable, no CDN), and because it speaks UTF-8 the session transcodes the
+  CP437 art on the way out and folds typed UTF-8 back to CP437 on the way in.
+  Sysop-toggleable like every feature.
+
 - **Make the board yours: per-user look & feel.** Two preferences on the
   settings screen, editable over telnet/ssh *and* the web, honored on the
   terminal faces. **Expert mode** drops the hand-holding for regulars who know

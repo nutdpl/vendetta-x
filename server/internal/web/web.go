@@ -22,6 +22,7 @@ package web
 import (
 	"embed"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -73,6 +74,10 @@ type Config struct {
 	// LoginThrottle, when set, is shared with the telnet/ssh faces so brute-force
 	// attempts are counted across all three. Nil means the web face uses its own.
 	LoginThrottle *throttle.Throttle
+	// RunTerminal, when set, drives a full board session over a connection --
+	// the web-terminal WebSocket hands its upgraded socket here, exactly as the
+	// ssh face hands over its channel. Nil disables the web terminal.
+	RunTerminal func(conn io.ReadWriteCloser, remoteAddr string)
 }
 
 // New builds the HTTP handler for the web face. st is the shared data store;
@@ -119,6 +124,10 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	if imgFS, err := fs.Sub(assets, "static/img"); err == nil {
 		mux.Handle("GET /static/img/", http.StripPrefix("/static/img/", http.FileServerFS(imgFS)))
 	}
+	// static/vendor/* served as-is (the embedded xterm.js + its css).
+	if vFS, err := fs.Sub(assets, "static/vendor"); err == nil {
+		mux.Handle("GET /static/vendor/", http.StripPrefix("/static/vendor/", http.FileServerFS(vFS)))
+	}
 
 	// pages. Handlers live in the per-feature web_*.go files.
 	mux.HandleFunc("GET /{$}", s.home)
@@ -129,6 +138,8 @@ func New(st *store.Store, online func() []string, cfg Config) http.Handler {
 	mux.HandleFunc("GET /search", s.feature("search", s.search))
 	mux.HandleFunc("GET /events", s.sseEvents) // SSE live presence
 	mux.HandleFunc("GET /feed.atom", s.feature("feeds", s.feed))
+	mux.HandleFunc("GET /terminal", s.feature("webterm", s.terminal))
+	mux.HandleFunc("GET /ws-term", s.feature("webterm", s.wsTerminal))
 	mux.HandleFunc("POST /files/{id}/upload", s.uploadFile)
 	mux.HandleFunc("GET /users", s.users)
 	mux.HandleFunc("GET /users/{handle}", s.userProfile)

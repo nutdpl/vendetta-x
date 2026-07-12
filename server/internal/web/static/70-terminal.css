@@ -1,0 +1,16 @@
+/* =============================================================================
+   VENDETTA/X -- web terminal (xterm.js host)
+   ========================================================================== */
+.termpanel { max-width: 100%; }
+.xterm-host {
+  background: #0b0b12;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s2);
+  overflow: auto;
+}
+/* xterm renders 80 cols at the configured font; let the host scroll on narrow
+   viewports rather than squashing the grid. */
+.xterm-host .xterm { padding: 2px; }
+.termhint { color: var(--ink-faint); font-size: var(--fz-xs); margin-top: var(--s2); }
+#termstatus { color: var(--cyan); }

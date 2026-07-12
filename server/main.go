@@ -212,6 +212,9 @@ func main() {
 		// Share the failed-login limiter so an IP's attempts are counted across
 		// telnet, ssh, AND web -- one face can't be used to dodge another's count.
 		LoginThrottle: bbs.loginThrottle,
+		// The web terminal hands its upgraded WebSocket here, driving the real
+		// board over it just like the ssh face drives its channel.
+		RunTerminal: bbs.runTerminal,
 	}
 	mux := http.NewServeMux()
 	// /healthz: the uptime-monitor hook -- 200 with a node count while the
@@ -475,6 +478,27 @@ func (b *board) serveSSH(ln net.Listener, hostKeyPath string) {
 	if err != nil && !b.closing.Load() {
 		log.Printf("ssh: %v", err)
 	}
+}
+
+// runTerminal drives a full board session over a web-terminal WebSocket. It is
+// the same shape as the ssh hand-off (serveSSH): honor the node cap, wrap the
+// connection as a term.Session, and run the shared board flow. xterm.js speaks
+// UTF-8, so the session runs in UTF-8 mode -- CP437 art transcodes out and typed
+// UTF-8 folds back to CP437 -- and skips the telnet IAC/ESC-gate entirely (like
+// ssh). Bans and the login throttle still apply inside runBoard.
+func (b *board) runTerminal(conn io.ReadWriteCloser, remote string) {
+	defer sessionRecover(remote)
+	defer conn.Close()
+	if !b.acquire() {
+		conn.Write([]byte("\r\n  All nodes are busy right now. Try again shortly.\r\n"))
+		return
+	}
+	defer b.release()
+	s := term.NewRW(conn, remote)
+	defer s.Close()
+	s.SetIdleTimeout(b.idle)
+	s.SetUTF8(true)
+	b.runBoard(s)
 }
 
 // handle serves one telnet caller: telnet negotiation, the anti-bot ESC gate,

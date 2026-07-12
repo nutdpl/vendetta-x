@@ -1,0 +1,39 @@
+{{define "terminal"}}{{template "base" .}}{{end}}
+{{define "content"}}
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<section class="panel termpanel">
+  <h2 class="ph">the board, in your browser</h2>
+  <p class="sg-note">The real ANSI board &mdash; the login matrix, lightbar menus, the full-screen editor, the doors &mdash; over a live connection. Click in and press a key. It's the same account you use on every other face.</p>
+  <div id="term" class="xterm-host" aria-label="board terminal"></div>
+  <p class="termhint"><span id="termstatus">connecting&hellip;</span> &middot; UTF-8 &middot; 80&times;25</p>
+</section>
+<script src="/static/vendor/xterm.js"></script>
+<script>
+(function () {
+  var status = document.getElementById('termstatus');
+  if (!window.Terminal) { status.textContent = 'terminal failed to load'; return; }
+  var term = new Terminal({
+    cols: 80, rows: 25,
+    convertEol: false,
+    cursorBlink: true,
+    fontFamily: 'Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace',
+    fontSize: 15,
+    theme: { background: '#0b0b12', foreground: '#c8c8d0', cursor: '#36e6f0' }
+  });
+  term.open(document.getElementById('term'));
+  term.focus();
+
+  var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws = new WebSocket(proto + '://' + location.host + '/ws-term');
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = function () { status.textContent = 'connected'; term.focus(); };
+  ws.onmessage = function (e) { term.write(new Uint8Array(e.data)); };
+  ws.onclose = function () {
+    status.textContent = 'disconnected';
+    term.write('\r\n\r\n\x1b[1;31m[ NO CARRIER ]\x1b[0m\r\n');
+  };
+  ws.onerror = function () { status.textContent = 'connection error'; };
+  term.onData(function (d) { if (ws.readyState === 1) ws.send(d); });
+})();
+</script>
+{{end}}

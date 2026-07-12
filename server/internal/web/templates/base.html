@@ -20,6 +20,7 @@
       <a href="/boards"  class="{{if eq .Active "boards"}}on{{end}}" {{if eq .Active "boards"}}aria-current="page"{{end}}>boards</a>
       <a href="/files"   class="{{if eq .Active "files"}}on{{end}}"  {{if eq .Active "files"}}aria-current="page"{{end}}>files</a>
       {{if .Features.search}}<a href="/search" class="{{if eq .Active "search"}}on{{end}}" {{if eq .Active "search"}}aria-current="page"{{end}}>search</a>{{end}}
+      {{if .Features.webterm}}<a href="/terminal" class="{{if eq .Active "terminal"}}on{{end}}" {{if eq .Active "terminal"}}aria-current="page"{{end}}>terminal</a>{{end}}
       {{if and .User .Features.email}}<a href="/mail" class="{{if eq .Active "mail"}}on{{end}}" {{if eq .Active "mail"}}aria-current="page"{{end}}>mail</a>{{end}}
       {{if and .User .Features.qwk}}<a href="/qwk" class="{{if eq .Active "qwk"}}on{{end}}" {{if eq .Active "qwk"}}aria-current="page"{{end}}>qwk</a>{{end}}
       {{if .Features.voting}}<a href="/voting"  class="{{if eq .Active "voting"}}on{{end}}"  {{if eq .Active "voting"}}aria-current="page"{{end}}>voting</a>{{end}}
