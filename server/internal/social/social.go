@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"vendetta-x/server/internal/badges"
 	"vendetta-x/server/internal/store"
 )
 
@@ -123,6 +124,9 @@ func ProfileCard(u store.User) string {
 	labelLine(&b, "calls", fmt.Sprintf("%d", u.Calls))
 	labelLine(&b, "first", d(u.FirstCall.IsZero(), u.FirstCall.Format("2006-01-02")))
 	labelLine(&b, "last", d(u.LastCall.IsZero(), u.LastCall.Format("2006-01-02")))
+	if titles := badges.Titles(u); len(titles) > 0 {
+		labelLine(&b, "badges", strings.Join(titles, ", "))
+	}
 
 	b.WriteString(sgrMagenta + "`" + rule + "'" + sgrReset + crlf)
 	b.WriteString(sgrReset)

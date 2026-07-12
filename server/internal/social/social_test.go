@@ -162,6 +162,19 @@ func TestProfileCardContents(t *testing.T) {
 	}
 }
 
+func TestProfileCardShowsBadges(t *testing.T) {
+	// 120 posts earns the Co-Conspirator badge, which the card should list.
+	active := store.User{Handle: "nut", Posts: 120, FirstCall: d(2021, 6, 1)}
+	if card := ProfileCard(active); !strings.Contains(card, "Co-Conspirator") {
+		t.Fatalf("ProfileCard should list earned badges, got:\n%s", card)
+	}
+	// A brand-new account earns nothing, so the badges row is omitted entirely.
+	fresh := store.User{Handle: "noob"}
+	if card := ProfileCard(fresh); strings.Contains(card, "badges") {
+		t.Fatalf("ProfileCard should omit the badges row for a user with none")
+	}
+}
+
 func TestLeaderBoardHeadingsNonEmpty(t *testing.T) {
 	board := LeaderBoard(Rank(sampleUsers(), 3))
 	if board == "" {

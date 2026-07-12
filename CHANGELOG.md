@@ -8,6 +8,15 @@ semantic versioning.
 
 ### Added
 
+- **Achievements.** Callers now earn scene-flavored badges as their counters
+  climb -- "100 posts -> CO-CONSPIRATOR", "50 uploads -> COURIER", a GB shared
+  -> WAREZ BARON, plus a STAFF mark for the operator. They're pure derivation
+  from the numbers already on your record (no new tables, no backfill, and a
+  badge lights up the instant you cross its line), and they show on your stats
+  screen over telnet/ssh and as a strip of star chips on the web profile. Each
+  ladder shows only the top rung you've reached, so a card stays a tidy handful
+  of titles rather than a wall.
+
 - **Board-wide search, on every face.** Once a board fills up, "where was that
   post about ratios / that keygen?" is the question no listing answers. Now the
   message base picker grows a **[/]find** and the file listing an **[F]ind**:

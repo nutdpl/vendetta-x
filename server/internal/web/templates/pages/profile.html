@@ -20,6 +20,11 @@
       <div class="ph-stat"><span class="v">{{.User.Calls}}</span><span class="k">calls</span></div>
     </div>
   </div>
+  {{if .Badges}}
+    <div class="ph-badges" aria-label="badges">
+      {{range .Badges}}<span class="pbadge" title="{{.Desc}}"><span class="pb-star">&#9733;</span>{{.Title}}</span>{{end}}
+    </div>
+  {{end}}
 </section>
 
 <div class="cols">

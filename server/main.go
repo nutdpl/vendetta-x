@@ -36,6 +36,7 @@ import (
 
 	"vendetta-x/server/internal/acs"
 	"vendetta-x/server/internal/auth"
+	"vendetta-x/server/internal/badges"
 	"vendetta-x/server/internal/bbslist"
 	"vendetta-x/server/internal/bulletin"
 	"vendetta-x/server/internal/chat"
@@ -1623,6 +1624,7 @@ func (b *board) profile(s *term.Session, user *store.User) {
 	row("Last Call", dateOr(user.LastCall))
 	row("Tagline", user.Tagline)
 	row("Flags", user.Flags)
+	row("Badges", strings.Join(badges.Titles(*user), " \xfa "))
 	s.Pause()
 }
 

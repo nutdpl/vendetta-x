@@ -31,3 +31,28 @@
 
 /* flag badges sit on one line with a little breathing room */
 .users-flags { display: inline-flex; gap: var(--s1); flex-wrap: wrap; }
+
+/* profile badges: a strip of earned distinctions under the profile header.
+   Neutral chips with a gold star, tooltip = how it was earned. */
+.ph-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.pbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 2px var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-size: var(--fz-xs);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.pbadge .pb-star { color: var(--amber, #f5b301); }

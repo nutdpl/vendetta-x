@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"vendetta-x/server/internal/badges"
 	"vendetta-x/server/internal/store"
 )
 
@@ -62,8 +63,9 @@ func (s *server) userProfile(w http.ResponseWriter, r *http.Request) {
 
 	s.render(w, "profile", struct {
 		pageData
-		User  store.User
-		Flags []string
-		Posts []store.Message
-	}{s.base(r, u.Handle, "users"), *u, flags, posts})
+		User   store.User
+		Flags  []string
+		Posts  []store.Message
+		Badges []badges.Badge
+	}{s.base(r, u.Handle, "users"), *u, flags, posts, badges.Earned(*u)})
 }
