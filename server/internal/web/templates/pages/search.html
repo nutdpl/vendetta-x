@@ -1,0 +1,56 @@
+{{define "search"}}{{template "base" .}}{{end}}
+{{define "content"}}
+
+<section class="panel">
+  <h2 class="ph">search the board</h2>
+  <form class="searchform" method="get" action="/search" role="search">
+    <div class="field">
+      <label for="q">find in messages &amp; files <span class="opt">(subject, body, handle, filename, description)</span></label>
+      <input id="q" type="search" name="q" value="{{.Query}}" autocomplete="off" autofocus
+             placeholder="a handle, a filename, a word from a post&hellip;">
+    </div>
+    <button class="btn btn-primary" type="submit">search</button>
+  </form>
+</section>
+
+{{if .Searched}}
+
+  <section class="panel">
+    <h2 class="ph">messages <span class="chip">{{len .Messages}}</span></h2>
+    {{if .Messages}}
+      <div class="search-msgs">
+        {{range .Messages}}
+          <a class="search-msg" href="/boards/{{.BoardID}}">
+            <div class="sm-top">
+              <span class="sm-subj">{{.Msg.Subject}}</span>
+              {{template "c-badge" (dict "label" .BoardName "variant" "cyan")}}
+            </div>
+            <div class="sm-meta">by {{.Msg.From}} &middot; {{since .Msg.Posted}}</div>
+          </a>
+        {{end}}
+      </div>
+    {{else}}
+      <p class="empty">No messages match <span class="mono">{{.Query}}</span> in the bases you can read.</p>
+    {{end}}
+  </section>
+
+  <section class="panel">
+    <h2 class="ph">files <span class="chip">{{len .Files}}</span></h2>
+    {{if .Files}}
+      <div class="files-list">
+        {{range .Files}}
+          {{template "files-row" (dict "file" .File "url" .URL)}}
+        {{end}}
+      </div>
+    {{else}}
+      <p class="empty">No files match <span class="mono">{{.Query}}</span> in the areas you can access.</p>
+    {{end}}
+  </section>
+
+{{else}}
+  <section class="panel">
+    <p class="empty">Type a term above to search every message base and file area you can reach. Restricted bases stay invisible &mdash; you only ever search what you can already open.</p>
+  </section>
+{{end}}
+
+{{end}}

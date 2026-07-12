@@ -946,6 +946,7 @@ func (b *board) firstReadableBoard(user *store.User) *store.Board {
 // readable base, or nil if the caller quits.
 func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 	subj := subjectOf(user)
+	searchOn := b.st.FeatureEnabled("search")
 	for {
 		boards, err := b.st.Boards()
 		if err != nil {
@@ -983,11 +984,20 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 				n, truncStr(bd.Name, 28), count, nw, last)
 		}
 
-		s.Print("\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m (\x1b[1;37mQ\x1b[0;37m to quit) \x1b[1;36m> \x1b[1;37m")
+		prompt := "\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37mQ\x1b[0;37m]uit"
+		if searchOn {
+			prompt += " \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37m/\x1b[0;37m]find"
+		}
+		prompt += " \x1b[1;36m> \x1b[1;37m"
+		s.Print(prompt)
 		s.Flush()
-		line := strings.TrimSpace(s.ReadLine(5))
+		line := strings.TrimSpace(s.ReadLine(40))
 		if line == "" || lc(line[0]) == 'q' {
 			return nil
+		}
+		if searchOn && line[0] == '/' {
+			b.searchMessages(s, user, strings.TrimSpace(line[1:]))
+			continue
 		}
 		n, perr := strconv.Atoi(line)
 		if perr != nil || n < 1 || n > len(boards) {
@@ -1159,10 +1169,21 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 			}
 		}
 	}
+	b.runReader(s, bd, user, msgs, i, canPost)
+}
+
+// runReader runs the one-message-at-a-time reader loop over msgs, opening on
+// index start and handling prev/next/thread/reply/quit until the caller leaves.
+// Every message shown advances the caller's qscan read pointer (monotonically,
+// so paging back through old mail never resurrects it as "new"). Shared by the
+// board reader and the search-results reader so both behave identically.
+func (b *board) runReader(s *term.Session, bd *store.Board, user *store.User, msgs []store.Message, start int, canPost bool) {
+	i := start
+	if i < 0 || i >= len(msgs) {
+		i = 0
+	}
 	for {
 		b.showMessage(s, bd, msgs, i, canPost)
-		// Seeing a message advances the qscan pointer (monotonically, so
-		// paging back through old mail never resurrects it as "new").
 		_ = b.st.SetLastRead(user.ID, bd.ID, msgs[i].ID)
 		k, ch := s.ReadKey()
 		switch {
@@ -1392,8 +1413,12 @@ func (b *board) listFiles(s *term.Session, user *store.User, area *store.FileAre
 			s.Printf("\r\n\x1b[1;30m  %s credit left \xfa upload to earn more.\x1b[0m\r\n",
 				sizeStr(b.downloadAllowance(user)))
 		}
-		s.Print("\r\n\x1b[0;37m  [\x1b[1;37m#\x1b[0;37m] download  [\x1b[1;37mU\x1b[0;37m]pload  " +
-			"[\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;36m> \x1b[1;37m")
+		find := ""
+		if b.st.FeatureEnabled("search") {
+			find = "[\x1b[1;37mF\x1b[0;37m]ind  "
+		}
+		s.Printf("\r\n\x1b[0;37m  [\x1b[1;37m#\x1b[0;37m] download  [\x1b[1;37mU\x1b[0;37m]pload  %s"+
+			"[\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;36m> \x1b[1;37m", find)
 		s.Flush()
 
 		line := strings.TrimSpace(s.ReadLine(8))
@@ -1403,6 +1428,8 @@ func (b *board) listFiles(s *term.Session, user *store.User, area *store.FileAre
 		case strings.EqualFold(line, "u"):
 			b.uploadFile(s, user, area)
 			s.Pause()
+		case find != "" && strings.EqualFold(line, "f"):
+			b.searchFiles(s, user, "")
 		default:
 			n, convErr := strconv.Atoi(line)
 			if convErr != nil || n < 1 || n > len(files) {

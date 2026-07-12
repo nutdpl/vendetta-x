@@ -8,6 +8,19 @@ semantic versioning.
 
 ### Added
 
+- **Board-wide search, on every face.** Once a board fills up, "where was that
+  post about ratios / that keygen?" is the question no listing answers. Now the
+  message base picker grows a **[/]find** and the file listing an **[F]ind**:
+  type a term and the board searches subjects, bodies and handles (messages) or
+  filenames, descriptions and uploaders (files) across everything at once, then
+  drops you straight into the reader on a message hit or a ZMODEM download on a
+  file hit. On the web it's a first-class **search** page (one box over both
+  corpora, message cards + file rows). Crucially the search only ever looks in
+  the bases and areas *you* can already open -- ACS scoping is enforced
+  identically on telnet, ssh and the web, so a restricted base can never leak a
+  line through search -- and typed wildcards (`%`, `_`) match literally. One
+  store, three renderings; sysop-toggleable like every other feature.
+
 - **Sysop-configurable main menu.** Which command lives in each of the 19
   telnet/ssh main-menu slots, its label, and the key that picks it are no
   longer baked into the art -- they're editable at `/sysop/menu`, take
