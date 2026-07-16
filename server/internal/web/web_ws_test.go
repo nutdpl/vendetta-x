@@ -177,3 +177,64 @@ func TestWSUpgradeAndStream(t *testing.T) {
 		t.Fatalf("echo = %q, want GO", echo)
 	}
 }
+
+// wsHandshakeStatus dials the server and sends a WebSocket handshake with the
+// given Origin header (empty = omit it), returning the HTTP status line.
+func wsHandshakeStatus(t *testing.T, srvURL, origin string) string {
+	t.Helper()
+	host := strings.TrimPrefix(srvURL, "http://")
+	conn, err := net.Dial("tcp", host)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	key := base64.StdEncoding.EncodeToString([]byte("0123456789abcdef"))
+	req := "GET /ws-term HTTP/1.1\r\n" +
+		"Host: " + host + "\r\n" +
+		"Upgrade: websocket\r\n" +
+		"Connection: Upgrade\r\n" +
+		"Sec-WebSocket-Version: 13\r\n" +
+		"Sec-WebSocket-Key: " + key + "\r\n"
+	if origin != "" {
+		req += "Origin: " + origin + "\r\n"
+	}
+	req += "\r\n"
+	if _, err := conn.Write([]byte(req)); err != nil {
+		t.Fatalf("write handshake: %v", err)
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read status: %v", err)
+	}
+	return strings.TrimSpace(line)
+}
+
+// TestWSOriginCheck proves the /ws-term upgrade rejects a cross-origin handshake
+// (the cross-site WebSocket hijacking guard) while allowing a same-origin one.
+func TestWSOriginCheck(t *testing.T) {
+	st, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	st.Seed()
+	ran := false
+	runner := func(conn io.ReadWriteCloser, remote string) { ran = true; conn.Close() }
+	srv := httptest.NewServer(New(st, func() []string { return nil }, Config{RunTerminal: runner}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	// A foreign Origin is refused with 403 -- and the board runner never runs.
+	if status := wsHandshakeStatus(t, srv.URL, "http://evil.example"); !strings.Contains(status, "403") {
+		t.Errorf("cross-origin handshake status = %q, want 403", status)
+	}
+	if ran {
+		t.Error("board runner must not start for a cross-origin upgrade")
+	}
+
+	// A matching Origin upgrades normally.
+	if status := wsHandshakeStatus(t, srv.URL, "http://"+host); !strings.Contains(status, "101") {
+		t.Errorf("same-origin handshake status = %q, want 101", status)
+	}
+}

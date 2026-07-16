@@ -23,6 +23,17 @@ func (s *server) wsTerminal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "web terminal not available", http.StatusServiceUnavailable)
 		return
 	}
+	// Same-origin gate. The upgrade is a GET, so csrfGuard (which only checks
+	// unsafe methods) never sees it -- without this, any cross-origin page could
+	// open a readable+writable board session in a victim's browser (cross-site
+	// WebSocket hijacking), and from a co-located browser that reaches the loopback
+	// enrollment path it could claim a still-passwordless privileged account.
+	// Browsers always send Origin on a WebSocket handshake; sameOrigin rejects a
+	// foreign one while still allowing header-less non-browser clients.
+	if !sameOrigin(r) {
+		http.Error(w, "cross-origin websocket blocked", http.StatusForbidden)
+		return
+	}
 	conn, err := acceptWebSocket(w, r)
 	if err != nil {
 		log.Printf("web: ws upgrade: %v", err)

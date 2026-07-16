@@ -177,6 +177,17 @@ semantic versioning.
   bitten half-block base rule under the header. Same row count, same token
   alignment -- message bodies line up exactly as before.
 
+### Security
+
+- **Same-origin gate on the web-terminal WebSocket.** The `/ws-term` upgrade is
+  a GET, which the CSRF guard (only checking unsafe methods) never saw, so any
+  cross-origin page could open a readable+writable board session in a visitor's
+  browser (cross-site WebSocket hijacking) -- and from a browser co-located with
+  the board, drive the loopback enrollment path to claim a still-passwordless
+  privileged account. The upgrade now rejects a foreign `Origin` (browsers always
+  send it on a WebSocket handshake) with a 403, while still allowing header-less
+  non-browser clients. Caught by this branch's own security review.
+
 ### Fixed
 
 - **Every art screen double-spaced and smeared on real scene terminals**
