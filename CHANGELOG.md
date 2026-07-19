@@ -8,6 +8,14 @@ semantic versioning.
 
 ### Added
 
+- **A classic "more" pager on the terminal.** Long message posts and g-files no
+  longer scroll their own top off an 80x24 screen: the reader now pauses a page
+  at a time with the old-school `-- more --` prompt. Space (or N) pages forward,
+  Enter reveals one more line, C dumps the rest continuously, Q/Esc stops. Short
+  posts that already fit are untouched -- the prompt only appears when there's
+  more than a screenful. Wired into the message reader (so it also covers the
+  new-scan walk) and the g-files library.
+
 - **The web terminal: the real board in a browser tab.** A new `/terminal` page
   runs the genuine ANSI board -- the modem connect ceremony, the login matrix,
   lightbar menus, the full-screen editor, the doors -- live in the browser, with

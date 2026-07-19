@@ -83,8 +83,8 @@ func (b *board) gfileShow(s *term.Session, id int64) {
 	s.Printf("  \x1b[1;35m%s \x1b[1;30m\xb3 \x1b[1;36m%s \x1b[1;30m\xb3 \x1b[0;37mby %s\x1b[0m\r\n",
 		truncStr(g.Category, 20), dateOr(g.Added), g.Author)
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-	for _, line := range strings.Split(g.Body, "\n") {
-		s.Printf("  \x1b[0;37m%s\x1b[0m\r\n", line)
+	// Page the document so a long g-file doesn't scroll off a short terminal.
+	if b.pageText(s, g.Body, gfilePageRows) {
+		s.Pause()
 	}
-	s.Pause()
 }

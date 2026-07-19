@@ -28,10 +28,9 @@ func (b *board) showMessage(s *term.Session, bd *store.Board, msgs []store.Messa
 		"MD": m.Posted.Format("Mon 2006-01-02 15:04"),
 	})
 
-	// The body, plainly indented under the header.
-	for _, ln := range strings.Split(m.Body, "\n") {
-		s.Print("  \x1b[0;37m" + ln + "\x1b[0m\r\n")
-	}
+	// The body, plainly indented under the header -- paged so a long post
+	// doesn't scroll its own header off the top of a short terminal.
+	b.pageText(s, m.Body, msgPageRows)
 
 	// Navigation footer.
 	s.Print("\r\n\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
