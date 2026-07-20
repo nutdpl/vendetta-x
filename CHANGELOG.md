@@ -8,6 +8,13 @@ semantic versioning.
 
 ### Added
 
+- **Node-to-node messages.** When more than one caller is on, you can poke
+  another node: from **who's online**, `[S]end to a node`, pick the node number,
+  type a line, and it lands on that caller the next time they hit the main menu
+  ("`-!- node message from nut: meet me in teleconf`"). The text is control-byte
+  sanitized so it can't scribble on the recipient's screen, and tagged with your
+  handle. Sysop-toggleable (Node Messages).
+
 - **The twit list (ignore list).** Had enough of someone? Add their handle to
   your ignore list on the settings screen (`[I]gnore list`), and their message
   posts and wall oneliners simply stop appearing for you -- in the reader, the

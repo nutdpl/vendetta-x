@@ -123,7 +123,7 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 	}
 
 	// The scenic route: who's on, the stats, the sysop's bulletins, the wall.
-	b.whosOnline(s)
+	b.whosOnline(s, user)
 	b.sysInfo(s, tok, user)
 	b.showBulletins(s)
 	b.oneliners(s, user)

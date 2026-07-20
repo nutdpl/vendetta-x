@@ -293,10 +293,13 @@ type presence struct {
 func newPresence() *presence { return &presence{who: map[int]*presEntry{}} }
 
 // presEntry is one online node: who is on it and what they're doing right
-// now -- the activity column classic multinode boards showed on who's-online.
+// now -- the activity column classic multinode boards showed on who's-online --
+// plus an inbox of node-to-node messages waiting to be delivered at that
+// caller's next menu.
 type presEntry struct {
 	who      string
 	activity string
+	inbox    []string
 }
 
 func (p *presence) join(who string) int {
@@ -328,6 +331,32 @@ func (p *presence) setActivity(id int, activity string) {
 	if e, ok := p.who[id]; ok {
 		e.activity = activity
 	}
+}
+
+// send queues a node-to-node message for delivery at the target node's next
+// menu. Returns false if no such node is online.
+func (p *presence) send(toNode int, line string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e, ok := p.who[toNode]
+	if !ok {
+		return false
+	}
+	e.inbox = append(e.inbox, line)
+	return true
+}
+
+// drain returns and clears a node's queued node-messages.
+func (p *presence) drain(node int) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e, ok := p.who[node]
+	if !ok || len(e.inbox) == 0 {
+		return nil
+	}
+	msgs := e.inbox
+	e.inbox = nil
+	return msgs
 }
 
 // list is the web face's online() callback: a stable, sorted snapshot.
@@ -872,6 +901,10 @@ func (b *board) mainMenu(s *term.Session, tok map[string]string, user *store.Use
 	first := true
 	b.pres.setActivity(node, "main menu")
 	for {
+		// Deliver any node-to-node messages waiting for this caller before the
+		// menu repaints.
+		b.deliverNodeMessages(s, node)
+
 		// The menu is sysop-configurable (slot -> action/label/hotkey lives
 		// in b.menu): compose the current bindings into mainmenu.pp's
 		// @@MENU_OPTIONS@@ placeholder fresh on every render, so an edit in
@@ -1580,24 +1613,41 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 	}
 }
 
-func (b *board) whosOnline(s *term.Session) {
-	online := b.pres.snapshot()
-	b.screenHeader(s, "who's online")
-	s.Print("\x1b[1;35m  Node  \x1b[0;36mCaller                        \x1b[1;30mDoing\x1b[0m\r\n")
-	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
-	for _, w := range online {
-		act := w.Activity
-		if act == "" {
-			act = "connecting"
+func (b *board) whosOnline(s *term.Session, user *store.User) {
+	canSend := b.st.FeatureEnabled("nodemsg")
+	for {
+		online := b.pres.snapshot()
+		b.screenHeader(s, "who's online")
+		s.Print("\x1b[1;35m  Node  \x1b[0;36mCaller                        \x1b[1;30mDoing\x1b[0m\r\n")
+		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
+		for _, w := range online {
+			act := w.Activity
+			if act == "" {
+				act = "connecting"
+			}
+			s.Printf("  \x1b[1;33m%4d  \x1b[1;36m\xfe \x1b[0;37m%-28s \x1b[1;30m%s\x1b[0m\r\n",
+				w.Node, truncStr(w.Who, 28), truncStr(act, 32))
 		}
-		s.Printf("  \x1b[1;33m%4d  \x1b[1;36m\xfe \x1b[0;37m%-28s \x1b[1;30m%s\x1b[0m\r\n",
-			w.Node, truncStr(w.Who, 28), truncStr(act, 32))
+		if len(online) == 0 {
+			s.Print("\x1b[0;37m  Nobody on the wire right now.\x1b[0m\r\n")
+		}
+		s.Printf("\r\n\x1b[1;30m  %d %s connected.\x1b[0m\r\n", len(online), plural(len(online), "node", "nodes"))
+
+		// Without node messaging, this is a read-only screen.
+		if !canSend || len(online) == 0 {
+			s.Pause()
+			return
+		}
+		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mS\x1b[0;37m]end to a node  [\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;36m> \x1b[1;37m")
+		s.Flush()
+		line := strings.TrimSpace(s.ReadLine(8))
+		if line == "" || strings.EqualFold(line, "q") {
+			return
+		}
+		if strings.EqualFold(line, "s") {
+			b.sendNodeMessage(s, user)
+		}
 	}
-	if len(online) == 0 {
-		s.Print("\x1b[0;37m  Nobody on the wire right now.\x1b[0m\r\n")
-	}
-	s.Printf("\r\n\x1b[1;30m  %d %s connected.\x1b[0m\r\n", len(online), plural(len(online), "node", "nodes"))
-	s.Pause()
 }
 
 func (b *board) userList(s *term.Session) {

@@ -88,6 +88,7 @@ var Features = []Feature{
 	{"oneliners", "Oneliners", "The wall"},
 	{"teleconference", "Teleconference", "Multi-node live chat"},
 	{"paging", "Page Sysop", "Callers can page the operator (delivered as mail)"},
+	{"nodemsg", "Node Messages", "Callers can send a line to another online node"},
 }
 
 // ---- the automessage --------------------------------------------------------

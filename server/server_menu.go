@@ -91,7 +91,7 @@ var mainMenuDispatch = map[string]mainMenuHandler{
 		b.oneliners(s, user)
 	}},
 	"whoson": {Run: func(b *board, s *term.Session, tok map[string]string, user *store.User) {
-		b.whosOnline(s)
+		b.whosOnline(s, user)
 	}},
 	"teleconference": {Feature: "teleconference", Doing: "in teleconference", Run: func(b *board, s *term.Session, tok map[string]string, user *store.User) {
 		b.teleconference(s, user)
