@@ -298,6 +298,9 @@ CREATE TABLE IF NOT EXISTS lastread (
 			return fmt.Errorf("store: migrate column: %w", err)
 		}
 	}
+	if err := s.migrateTwits(); err != nil {
+		return err
+	}
 	return nil
 }
 

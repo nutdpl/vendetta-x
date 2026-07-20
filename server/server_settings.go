@@ -32,7 +32,7 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 		row("Clock", clockLabel(user.Clock12))
 		s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 		s.Print("\r\n\x1b[0;37m  [\x1b[1;37mN\x1b[0;37m]ame  [\x1b[1;37mL\x1b[0;37m]ocation  [\x1b[1;37mE\x1b[0;37m]mail  [\x1b[1;37mT\x1b[0;37m]agline  [\x1b[1;37mB\x1b[0;37m]irthday\x1b[0m\r\n")
-		s.Print("\x1b[0;37m  [\x1b[1;37mX\x1b[0;37m]pert mode  [\x1b[1;37mK\x1b[0;37m] clock  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
+		s.Print("\x1b[0;37m  [\x1b[1;37mX\x1b[0;37m]pert mode  [\x1b[1;37mK\x1b[0;37m] clock  [\x1b[1;37mI\x1b[0;37m]gnore list  [\x1b[1;37mP\x1b[0;37m]assword  [\x1b[1;37mQ\x1b[0;37m]uit\x1b[0m\r\n")
 		s.Print("\x1b[0;37m  Choice \x1b[1;36m> \x1b[1;37m")
 		s.Flush()
 
@@ -110,6 +110,8 @@ func (b *board) settings(s *term.Session, tok map[string]string, user *store.Use
 			}
 			s.Printf("\x1b[1;32m  Clock set to %s.\x1b[0m\r\n", clockLabel(!user.Clock12))
 			s.Pause()
+		case 'i':
+			b.twitSettings(s, user)
 		case 'p':
 			b.changePassword(s, user)
 		case 'q':

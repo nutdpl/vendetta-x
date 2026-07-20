@@ -1050,6 +1050,7 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 func (b *board) newScan(s *term.Session, user *store.User) {
 	subj := subjectOf(user)
 	boards, _ := b.st.Boards()
+	twits := b.twitSet(user)
 
 	sawAny := false
 	for bi := range boards {
@@ -1062,7 +1063,11 @@ func (b *board) newScan(s *term.Session, user *store.User) {
 			continue
 		}
 		msgs, err := b.st.MessagesAfter(bd.ID, ptr)
-		if err != nil || len(msgs) == 0 {
+		if err != nil {
+			continue
+		}
+		msgs = filterTwitMsgs(msgs, twits)
+		if len(msgs) == 0 {
 			continue
 		}
 		sawAny = true
@@ -1162,6 +1167,8 @@ func (b *board) readBoard(s *term.Session, tag string, user *store.User) {
 		s.Notice("Could not load messages.")
 		return
 	}
+	// Hide posts from handles on the caller's ignore list.
+	msgs = filterTwitMsgs(msgs, b.twitSet(user))
 
 	canPost := acs.Eval(bd.PostACS, subj)
 
@@ -1529,6 +1536,7 @@ func (b *board) oneliners(s *term.Session, user *store.User) {
 		s.Notice("Could not load the wall.")
 		return
 	}
+	liners = filterTwitLiners(liners, b.twitSet(user))
 	b.screenHeader(s, "the wall \xfa oneliners")
 
 	// The automessage: one claimable board-wide shout, sitting above the

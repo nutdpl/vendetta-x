@@ -8,6 +8,12 @@ semantic versioning.
 
 ### Added
 
+- **The twit list (ignore list).** Had enough of someone? Add their handle to
+  your ignore list on the settings screen (`[I]gnore list`), and their message
+  posts and wall oneliners simply stop appearing for you -- in the reader, the
+  new-scan, and on the wall -- with nobody else's view changed. Per-user, case-
+  insensitive, and you can't ignore yourself.
+
 - **"You have messages waiting" -- a personal scan.** Public posts addressed to
   you by name (a reply to your post, or anything sent to your handle) are now
   surfaced the classic way: the logon greeting counts them and offers to read
