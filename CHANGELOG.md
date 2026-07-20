@@ -8,6 +8,15 @@ semantic versioning.
 
 ### Added
 
+- **"You have messages waiting" -- a personal scan.** Public posts addressed to
+  you by name (a reply to your post, or anything sent to your handle) are now
+  surfaced the classic way: the logon greeting counts them and offers to read
+  them right there (`read now? [y/N]`), and the message base picker grows a
+  **[Y]ours** command that lists every post addressed to you across the bases
+  you can read and opens any one in the reader. ACS-scoped like everything else
+  -- a gated base never shows up -- and the broadcast "All" recipient never
+  counts as personal.
+
 - **A classic "more" pager on the terminal.** Long message posts and g-files no
   longer scroll their own top off an 80x24 screen: the reader now pauses a page
   at a time with the old-school `-- more --` prompt. Space (or N) pages forward,

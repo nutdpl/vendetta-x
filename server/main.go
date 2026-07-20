@@ -1010,7 +1010,7 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 				n, truncStr(bd.Name, 28), count, nw, last)
 		}
 
-		prompt := "\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37mQ\x1b[0;37m]uit"
+		prompt := "\r\n\x1b[0;37m  Message base \x1b[1;37m#\x1b[0;37m \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37mQ\x1b[0;37m]uit \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37mY\x1b[0;37m]ours"
 		if searchOn {
 			prompt += " \x1b[1;30m\xfa\x1b[0;37m [\x1b[1;37m/\x1b[0;37m]find"
 		}
@@ -1020,6 +1020,10 @@ func (b *board) pickBase(s *term.Session, user *store.User) *store.Board {
 		line := strings.TrimSpace(s.ReadLine(40))
 		if line == "" || lc(line[0]) == 'q' {
 			return nil
+		}
+		if lc(line[0]) == 'y' {
+			b.personalScan(s, user)
+			continue
 		}
 		if searchOn && line[0] == '/' {
 			b.searchMessages(s, user, strings.TrimSpace(line[1:]))

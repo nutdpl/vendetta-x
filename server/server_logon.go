@@ -79,6 +79,23 @@ func (b *board) logon(s *term.Session, tok map[string]string, user *store.User) 
 		}
 	}
 
+	// Public posts addressed to the caller by name (replies, direct posts) that
+	// they haven't caught up on -- offered inline, the classic "you have
+	// messages waiting; read them now?"
+	if ids, _ := b.readableBoardIDs(user); len(ids) > 0 {
+		if n, err := b.st.UnreadToHandle(user.ID, user.Handle, ids); err == nil && n > 0 {
+			s.Printf("  \x1b[1;30mTo you   \x1b[0;37m\xb7 \x1b[1;33m%d\x1b[0;37m %s addressed to you \x1b[1;30m-- read now? \x1b[1;36m[\x1b[1;37my\x1b[1;36m/\x1b[1;33mN\x1b[1;36m] \x1b[1;37m",
+				n, plural(n, "post", "posts"))
+			s.Flush()
+			k, ch := s.ReadKey()
+			s.Print("\r\n")
+			if k == term.KeyChar && lc(ch) == 'y' {
+				b.personalScan(s, user)
+				b.screenHeader(s, "logon") // repaint after the scan takes over the screen
+			}
+		}
+	}
+
 	// A little board culture: ring the caller's birthday and their board
 	// anniversary (years since first call) when today is the day.
 	now := time.Now()

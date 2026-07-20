@@ -30,21 +30,7 @@ func (b *board) searchMessages(s *term.Session, user *store.User, preset string)
 		return
 	}
 
-	subj := subjectOf(user)
-	boards, err := b.st.Boards()
-	if err != nil {
-		s.Notice("Could not load boards.")
-		return
-	}
-	byID := map[int64]*store.Board{}
-	var ids []int64
-	for i := range boards {
-		if acs.Eval(boards[i].ReadACS, subj) {
-			ids = append(ids, boards[i].ID)
-			byID[boards[i].ID] = &boards[i]
-		}
-	}
-
+	ids, byID := b.readableBoardIDs(user)
 	hits, err := b.st.SearchMessages(query, ids, searchLimit)
 	if err != nil {
 		s.Notice("Search failed.")
