@@ -59,6 +59,23 @@ func TestPagerShortBodyNoPrompt(t *testing.T) {
 	}
 }
 
+// TestPagerHonorsTallTerminal proves NAWS feeds the pager: a 30-line post that
+// would page on the 24-row floor shows no prompt on a 50-row terminal.
+func TestPagerHonorsTallTerminal(t *testing.T) {
+	b := newTestBoard(t)
+	bd := &store.Board{ID: 1, Name: "General", Tag: "gen"}
+	msgs := []store.Message{{ID: 1, BoardID: 1, From: "nut", To: "All", Subject: "tall", Body: numberedBody(30)}}
+	se := runOnSession(t, b, func(s *term.Session) {
+		s.SetWinSize(120, 50)
+		b.showMessage(s, bd, msgs, 0, false)
+	})
+	se.drain()
+	se.waitDone()
+	if strings.Contains(string(se.out), "-- more --") {
+		t.Error("a 30-line post should not page on a 50-row terminal")
+	}
+}
+
 // TestMessageReaderPagesLongBody proves the reader wires the pager in: a long
 // post pauses, and [C]ont reveals the rest.
 func TestMessageReaderPagesLongBody(t *testing.T) {

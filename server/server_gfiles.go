@@ -84,7 +84,7 @@ func (b *board) gfileShow(s *term.Session, id int64) {
 		truncStr(g.Category, 20), dateOr(g.Added), g.Author)
 	s.Print("\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")
 	// Page the document so a long g-file doesn't scroll off a short terminal.
-	if b.pageText(s, g.Body, gfilePageRows) {
+	if b.pageText(s, g.Body, bodyRows(s, gfileHeaderRows)) {
 		s.Pause()
 	}
 }

@@ -30,7 +30,7 @@ func (b *board) showMessage(s *term.Session, bd *store.Board, msgs []store.Messa
 
 	// The body, plainly indented under the header -- paged so a long post
 	// doesn't scroll its own header off the top of a short terminal.
-	b.pageText(s, m.Body, msgPageRows)
+	b.pageText(s, m.Body, bodyRows(s, msgFrameRows))
 
 	// Navigation footer.
 	s.Print("\r\n\x1b[1;30m  " + cp437rule(72) + "\x1b[0m\r\n")

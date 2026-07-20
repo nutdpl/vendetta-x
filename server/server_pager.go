@@ -6,14 +6,23 @@ import (
 	"vendetta-x/server/internal/term"
 )
 
-// Screen-height budgets for the "more" pager. The board targets an 80x24
-// terminal (the guaranteed floor), so long text pauses before it scrolls off
-// the top. The budget is the number of body rows a screen shows before the
-// prompt, leaving room for the header/footer each reader draws around it.
+// Per-reader header/footer margins subtracted from the real terminal height to
+// get the "more" pager's body budget. The board honors the client's reported
+// window size (NAWS on telnet, pty-req on ssh) and falls back to the 80x24
+// floor, so a taller terminal simply pages fewer times.
 const (
-	gfilePageRows = 20 // g-files: a small header, then the document
-	msgPageRows   = 15 // messages: the framed msgread header + the nav footer
+	gfileHeaderRows = 4 // g-files: title/category/author + rule
+	msgFrameRows    = 9 // messages: the framed msgread header + the nav footer
 )
+
+// bodyRows returns how many body lines to show before the "more" prompt on the
+// caller's actual terminal, never fewer than a handful.
+func bodyRows(s *term.Session, margin int) int {
+	if r := s.Rows() - margin; r >= 4 {
+		return r
+	}
+	return 4
+}
 
 // pageLines prints body lines indented in the reader's dim-white idiom,
 // pausing with a classic "-- more --" prompt every `rows` lines so long text

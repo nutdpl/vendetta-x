@@ -488,7 +488,7 @@ func (b *board) release() {
 // channel (no telnet IAC). A clean shutdown (b.closing) suppresses the expected
 // "use of closed network connection" error from the closed listener.
 func (b *board) serveSSH(ln net.Listener, hostKeyPath string) {
-	err := sshface.ServeListener(ln, hostKeyPath, func(ch io.ReadWriteCloser, remote, termType string) {
+	err := sshface.ServeListener(ln, hostKeyPath, func(ch io.ReadWriteCloser, remote, termType string, cols, rows int) {
 		defer sessionRecover(remote)
 		if !b.acquire() {
 			ch.Write([]byte("\r\n  All nodes are busy right now. Try again shortly.\r\n"))
@@ -500,8 +500,10 @@ func (b *board) serveSSH(ln net.Listener, hostKeyPath string) {
 		defer s.Close()
 		s.SetIdleTimeout(b.idle)
 		// SSH channels have no read deadline for a CPR probe, but the client
-		// named its terminal in the pty request -- decide the charset from it.
+		// named its terminal in the pty request -- decide the charset from it,
+		// and take the window size from the same request.
 		s.SetTermType(termType)
+		s.SetWinSize(cols, rows)
 		b.runBoard(s)
 	})
 	if err != nil && !b.closing.Load() {

@@ -8,6 +8,14 @@ semantic versioning.
 
 ### Added
 
+- **Big terminals get big screens (NAWS).** The board now asks your client for
+  its real window size -- NAWS (telnet option 31) over telnet, the pty-req
+  dimensions over ssh -- and honors it. The immediate payoff: the `-- more --`
+  pager measures its pages against your actual terminal height instead of
+  assuming 24 rows, so a 50-row window pages half as often. 80x24 stays the
+  guaranteed floor, and a bogus size report can never shrink a screen to
+  nothing.
+
 - **Node-to-node messages.** When more than one caller is on, you can poke
   another node: from **who's online**, `[S]end to a node`, pick the node number,
   type a line, and it lands on that caller the next time they hit the main menu

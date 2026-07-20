@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"vendetta-x/server/internal/render"
@@ -86,6 +87,12 @@ type Session struct {
 	// charset.go: DetectCharset / SetTermType). Output then transcodes CP437
 	// bytes to their Unicode glyphs and non-ASCII input folds back to CP437.
 	utf8 bool
+
+	// cols/rows hold the reported terminal size (NAWS on telnet, pty-req on
+	// ssh); 0 means unknown -> the 80x24 floor. Atomic because ssh window-change
+	// can update them from a different goroutine than the read loop. See naws.go.
+	cols atomic.Int32
+	rows atomic.Int32
 }
 
 type keyEvent struct {
@@ -146,7 +153,10 @@ func (s *Session) Write(b []byte)                    { s.emitBytes(b) }
 // to the buffered writer, below the charset layer: 0xFF here is telnet IAC,
 // never a glyph to transcode.
 func (s *Session) Negotiate() {
-	s.bw.Write([]byte{255, 251, 1, 255, 251, 3}) // IAC WILL ECHO, IAC WILL SGA
+	// IAC WILL ECHO, IAC WILL SGA, IAC DO NAWS (ask the client to report its
+	// window size; option 31). A client that supports NAWS answers with
+	// IAC WILL NAWS and an IAC SB NAWS sub-negotiation, parsed in ReadKey.
+	s.bw.Write([]byte{255, 251, 1, 255, 251, 3, 255, 253, 31})
 	s.Flush()
 }
 
@@ -174,17 +184,33 @@ func (s *Session) ReadKey() (Kind, byte) {
 				return KeyEOF, 0
 			}
 			switch {
-			case cmd == 250: // SB ... IAC SE
+			case cmd == 250: // SB <option> <payload...> IAC SE
+				opt, err := s.br.ReadByte()
+				if err != nil {
+					return KeyEOF, 0
+				}
+				var payload []byte
 				for {
 					x, err := s.br.ReadByte()
 					if err != nil {
 						return KeyEOF, 0
 					}
-					if x == 255 {
-						if y, _ := s.br.ReadByte(); y == 240 {
+					if x == 255 { // IAC inside SB: IAC SE ends it, IAC IAC is a literal 0xFF
+						y, err := s.br.ReadByte()
+						if err != nil {
+							return KeyEOF, 0
+						}
+						if y == 240 { // SE
 							break
 						}
+						payload = append(payload, 255)
+						continue
 					}
+					payload = append(payload, x)
+				}
+				// NAWS (option 31): width(2) height(2), big-endian.
+				if opt == 31 && len(payload) >= 4 {
+					s.SetWinSize(int(payload[0])<<8|int(payload[1]), int(payload[2])<<8|int(payload[3]))
 				}
 			case cmd >= 251 && cmd <= 254: // WILL/WONT/DO/DONT + option byte
 				s.br.ReadByte()
